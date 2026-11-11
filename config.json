@@ -4,13 +4,49 @@
   "drempel_celsius": 1,
   "uren_vooruit": 24,
   "aan": true,
-  "fietsmeldingen": [],
+  "fietsmeldingen": [
+    {
+      "naam": "Werk",
+      "aan": true,
+      "tijdstip": "19:00",
+      "dag_ervoor": true,
+      "heen": "07:20",
+      "terug": "17:00",
+      "reistijd_min": 35,
+      "dagen": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "melden_bij": [
+        "fiets",
+        "auto",
+        "krabben"
+      ]
+    }
+  ],
   "fietsgrenzen": {
     "max_regen_mm": 1,
+    "max_regen_min": 15,
     "max_regenkans": 70,
     "max_wind_kmh": 40,
     "max_windstoten_kmh": 65,
-    "min_temp": 0
+    "min_temp": 0,
+    "krab_temp": 2,
+    "gebruik": {
+      "regen": true,
+      "regenduur": true,
+      "regenkans": true,
+      "wind": true,
+      "windstoten": true,
+      "gladheid": true,
+      "onweer": true,
+      "sneeuw": true,
+      "ijzel": true,
+      "krabben": true
+    }
   },
   "latitude": 52.0633,
   "longitude": 5.5778
