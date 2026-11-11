@@ -43,8 +43,8 @@ GRENZEN_STANDAARD = {
     "max_regen_mm": 1.0,           # buien heviger dan dit (mm per uur)
     "max_regen_min": 15,           # langer regen tijdens de rit dan dit (minuten)
     "max_regenkans": 70,           # procent
-    "max_wind_kmh": 40,
-    "max_windstoten_kmh": 65,
+    "max_windkracht": 6,           # Beaufort
+    "max_windstoten_bft": 8,       # windstoten, in Beaufort
     "min_temp": 0,                 # bij deze temperatuur of kouder: kans op gladheid
     "krab_temp": 2,                # ruiten krabben: 's nachts deze temperatuur of kouder
     # Welke weersfactoren meetellen (false = uitgeschakeld)
@@ -53,12 +53,28 @@ GRENZEN_STANDAARD = {
 }
 
 
+BFT_GRENZEN = [1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118]  # km/u, bovengrens per windkracht
+
+
+def bft(kmh):
+    """Windsnelheid in km/u omzetten naar windkracht (Beaufort 0-12)."""
+    return next((i for i, g in enumerate(BFT_GRENZEN) if kmh < g), 12)
+
+
 def fietsinstellingen(c):
     """Leest fietsmeldingen en -grenzen, ook uit de oude vorm 'fietsadvies'."""
     oud = c.get("fietsadvies") or {}
     grenzen = dict(GRENZEN_STANDAARD)
     grenzen.update({k: oud[k] for k in GRENZEN_STANDAARD if k in oud})
-    grenzen.update(c.get("fietsgrenzen") or {})
+    eigen = dict(c.get("fietsgrenzen") or {})
+    # Oude instellingen in km/u omzetten naar windkracht (Beaufort)
+    if "max_wind_kmh" in eigen and "max_windkracht" not in eigen:
+        eigen["max_windkracht"] = bft(float(eigen["max_wind_kmh"]))
+    if "max_windstoten_kmh" in eigen and "max_windstoten_bft" not in eigen:
+        eigen["max_windstoten_bft"] = bft(float(eigen["max_windstoten_kmh"]))
+    for k in ("max_wind_kmh", "max_windstoten_kmh"):
+        eigen.pop(k, None)
+    grenzen.update(eigen)
     grenzen["gebruik"] = {**GRENZEN_STANDAARD["gebruik"], **(grenzen.get("gebruik") or {})}
     lijst = c.get("fietsmeldingen")
     if lijst is None and oud:
@@ -246,10 +262,10 @@ def beoordeel(uren, dag, f, g, kwartieren=None):
                 zacht.append(f"ca. {regenmin} min lichte regen ({nl(regenmm)} mm)")
             elif aan["regenkans"] and kans >= 30:
                 zacht.append(f"kans op een bui ({kans:.0f}%)")
-        if aan["wind"] and wind >= float(g["max_wind_kmh"]):
-            hard.append(f"harde wind ({wind:.0f} km/u)")
-        elif aan["windstoten"] and stoot >= float(g["max_windstoten_kmh"]):
-            hard.append(f"windstoten tot {stoot:.0f} km/u")
+        if aan["wind"] and bft(wind) >= float(g["max_windkracht"]):
+            hard.append(f"harde wind (windkracht {bft(wind)})")
+        elif aan["windstoten"] and bft(stoot) >= float(g["max_windstoten_bft"]):
+            hard.append(f"windstoten tot windkracht {bft(stoot)}")
         niveau = "auto" if hard else ("regenkleding" if zacht else "fiets")
         resultaat.append((naam, start, niveau, hard or zacht, round(temp)))
     return resultaat

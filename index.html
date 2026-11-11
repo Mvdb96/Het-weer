@@ -220,8 +220,8 @@
         <div class="grow"><label class="gsw"><input type="checkbox" data-g="regen"> Buien heviger dan</label><span class="gin"><input id="fRegen" type="text" inputmode="decimal"> mm/uur</span></div>
         <div class="grow"><label class="gsw"><input type="checkbox" data-g="regenduur"> Regen tijdens je rit langer dan</label><span class="gin"><input id="fDuur" type="text" inputmode="numeric"> min</span></div>
         <div class="grow"><label class="gsw"><input type="checkbox" data-g="regenkans"> Regenkans vanaf</label><span class="gin"><input id="fKans" type="text" inputmode="numeric"> %</span></div>
-        <div class="grow"><label class="gsw"><input type="checkbox" data-g="wind"> Wind vanaf</label><span class="gin"><input id="fWind" type="text" inputmode="numeric"> km/u</span></div>
-        <div class="grow"><label class="gsw"><input type="checkbox" data-g="windstoten"> Windstoten vanaf</label><span class="gin"><input id="fStoot" type="text" inputmode="numeric"> km/u</span></div>
+        <div class="grow"><label class="gsw"><input type="checkbox" data-g="wind"> Windkracht vanaf</label><span class="gin"><input id="fWind" type="text" inputmode="numeric"> Bft</span></div>
+        <div class="grow"><label class="gsw"><input type="checkbox" data-g="windstoten"> Windstoten vanaf windkracht</label><span class="gin"><input id="fStoot" type="text" inputmode="numeric"> Bft</span></div>
         <div class="grow"><label class="gsw"><input type="checkbox" data-g="gladheid"> Gladheid bij of onder</label><span class="gin"><input id="fTemp" type="text" inputmode="decimal"> °C</span></div>
         <div class="grow"><label class="gsw"><input type="checkbox" data-g="onweer"> Onweer</label></div>
         <div class="grow"><label class="gsw"><input type="checkbox" data-g="sneeuw"> Sneeuw</label></div>
@@ -270,11 +270,18 @@ const store = {
 };
 const NIVEAUS = ["fiets","regenkleding","auto"];
 const MELDING = { naam:"Werk", aan:true, tijdstip:"06:00", dag_ervoor:false, dagen:[1,2,3,4,5], heen:"07:30", terug:"17:00", reistijd_min:30, melden_bij:[...NIVEAUS, "krabben"] };
+const BFT_GRENZEN = [1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118]; // km/u, bovengrens per windkracht
+function bft(kmh){ const i = BFT_GRENZEN.findIndex(g => Number(kmh) < g); return i < 0 ? 12 : i; }
 const GEBRUIK = { regen:true, regenduur:true, regenkans:true, wind:true, windstoten:true, gladheid:true, onweer:true, sneeuw:true, ijzel:true, krabben:true };
-const GRENZEN = { max_regen_mm:1.0, max_regen_min:15, max_regenkans:70, max_wind_kmh:40, max_windstoten_kmh:65, min_temp:0, krab_temp:2, gebruik:GEBRUIK };
+const GRENZEN = { max_regen_mm:1.0, max_regen_min:15, max_regenkans:70, max_windkracht:6, max_windstoten_bft:8, min_temp:0, krab_temp:2, gebruik:GEBRUIK };
 function normaliseer(c){
   const oud = c.fietsadvies || null;
-  c.fietsgrenzen = Object.assign({}, GRENZEN, oud ? Object.fromEntries(Object.keys(GRENZEN).filter(k => k in oud).map(k => [k, oud[k]])) : {}, c.fietsgrenzen || {});
+  const eigen = Object.assign({}, c.fietsgrenzen || {});
+  // Oude instellingen in km/u omzetten naar windkracht
+  if ("max_wind_kmh" in eigen && !("max_windkracht" in eigen)) eigen.max_windkracht = bft(eigen.max_wind_kmh);
+  if ("max_windstoten_kmh" in eigen && !("max_windstoten_bft" in eigen)) eigen.max_windstoten_bft = bft(eigen.max_windstoten_kmh);
+  delete eigen.max_wind_kmh; delete eigen.max_windstoten_kmh;
+  c.fietsgrenzen = Object.assign({}, GRENZEN, oud ? Object.fromEntries(Object.keys(GRENZEN).filter(k => k in oud).map(k => [k, oud[k]])) : {}, eigen);
   if (!Array.isArray(c.fietsmeldingen)) {
     c.fietsmeldingen = oud && oud.aan ? [Object.assign({}, MELDING, {aan:true, tijdstip:oud.tijdstip, dagen:oud.dagen, heen:oud.heen, terug:oud.terug, reistijd_min:oud.reistijd_min, melden_bij: oud.melding === "alleen_auto" ? ["auto"] : NIVEAUS})] : [];
   }
@@ -361,7 +368,7 @@ function render(data, at, offline){
       <span class="t">${i===start?"Nu":uur(dt)}</span>
       <span class="w" title="${oms}">${em}</span>
       <span class="temp${t<=thr?" cold":""}">${graden(t)}</span>
-      <span class="det">${oms}${neerslag?" · "+neerslag:""}<br>${g!=null?"grond "+graden(g)+" · ":""}wind ${Math.round(H.wind_speed_10m[i])} km/u</span></div>`;
+      <span class="det">${oms}${neerslag?" · "+neerslag:""}<br>${g!=null?"grond "+graden(g)+" · ":""}windkracht ${bft(H.wind_speed_10m[i])}</span></div>`;
   }
   $("hourly").innerHTML = html;
 
@@ -376,7 +383,7 @@ function render(data, at, offline){
       <span class="d">${dagNaam(dt)}<small>${datum(dt)}</small></span>
       <span class="w" title="${oms}">${em}</span>
       <span class="mm"><span class="lo${lo<=thr?" cold":""}">${graden(lo)}</span><span class="hi">${graden(hi)}</span></span>
-      <span class="x">${ns>0?String(Math.round(ns*10)/10).replace(".",",")+" mm":"droog"}<br>${Math.round(D.wind_speed_10m_max[i])} km/u</span></div>`;
+      <span class="x">${ns>0?String(Math.round(ns*10)/10).replace(".",",")+" mm":"droog"}<br>windkracht ${bft(D.wind_speed_10m_max[i])}</span></div>`;
   }
   $("daily").innerHTML = html;
 
@@ -448,8 +455,8 @@ function beoordeel(data, dag, f, g){
       else if ((aan.regen || aan.regenduur) && r.minuten > 0) zacht.push(`ca. ${r.minuten} min lichte regen (${nl1(r.totaal)} mm)`);
       else if (aan.regenkans && kans >= 30) zacht.push(`kans op een bui (${Math.round(kans)}%)`);
     }
-    if (aan.wind && wind >= Number(g.max_wind_kmh)) hard.push(`harde wind (${Math.round(wind)} km/u)`);
-    else if (aan.windstoten && stoot >= Number(g.max_windstoten_kmh)) hard.push(`windstoten tot ${Math.round(stoot)} km/u`);
+    if (aan.wind && bft(wind) >= Number(g.max_windkracht)) hard.push(`harde wind (windkracht ${bft(wind)})`);
+    else if (aan.windstoten && bft(stoot) >= Number(g.max_windstoten_bft)) hard.push(`windstoten tot windkracht ${bft(stoot)}`);
     uit.push({naam, start, niveau: hard.length ? "auto" : (zacht.length ? "regenkleding" : "fiets"), redenen: hard.length ? hard : zacht, temp: Math.round(temp)});
   }
   return uit;
@@ -524,7 +531,7 @@ function vulFormulier(){
   if (cfg.locatie) $("q").placeholder = cfg.locatie;
   const g = cfg.fietsgrenzen;
   $("fRegen").value = String(g.max_regen_mm).replace(".",","); $("fDuur").value = g.max_regen_min; $("fKans").value = g.max_regenkans;
-  $("fWind").value = g.max_wind_kmh; $("fStoot").value = g.max_windstoten_kmh; $("fTemp").value = String(g.min_temp).replace(".",",");
+  $("fWind").value = g.max_windkracht; $("fStoot").value = g.max_windstoten_bft; $("fTemp").value = String(g.min_temp).replace(".",",");
   $("fKrab").value = String(g.krab_temp).replace(".",",");
   $("gList").querySelectorAll("[data-g]").forEach(c => { c.checked = g.gebruik[c.dataset.g] !== false; zetRij(c); });
   renderLijst();
@@ -630,8 +637,8 @@ $("fDel").onclick = async () => {
 function zetRij(c){ const rij = c.closest(".grow"); rij.classList.toggle("off", !c.checked); rij.querySelectorAll(".gin input").forEach(i => i.disabled = !c.checked); }
 $("gList").querySelectorAll("[data-g]").forEach(c => c.addEventListener("change", () => zetRij(c)));
 $("gSaveBtn").onclick = async () => {
-  const g = { max_regen_mm: getal("fRegen"), max_regen_min: getal("fDuur"), max_regenkans: getal("fKans"), max_wind_kmh: getal("fWind"),
-    max_windstoten_kmh: getal("fStoot"), min_temp: getal("fTemp"), krab_temp: getal("fKrab") };
+  const g = { max_regen_mm: getal("fRegen"), max_regen_min: getal("fDuur"), max_regenkans: getal("fKans"), max_windkracht: getal("fWind"),
+    max_windstoten_bft: getal("fStoot"), min_temp: getal("fTemp"), krab_temp: getal("fKrab") };
   if (Object.values(g).some(isNaN)) { msg("gMsg","Vul overal een getal in.","err"); return; }
   g.gebruik = Object.fromEntries([...$("gList").querySelectorAll("[data-g]")].map(c => [c.dataset.g, c.checked]));
   cfg.fietsgrenzen = g; store.set("vw_cfg", cfg); vernieuwAdvies();
