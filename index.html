@@ -407,11 +407,28 @@ $("ghSaveBtn").onclick = async () => {
 $("testBtn").onclick = async () => {
   if (!gh?.token) { msg("ghMsg","Sla eerst de koppeling op.","err"); return; }
   msg("ghMsg","Testmelding aanvragen…");
+  let stap = "repository";
   try {
-    const repo = await fetch(`https://api.github.com/repos/${gh.owner}/${gh.repo}`, {headers:{Authorization:"Bearer "+gh.token}}).then(r => r.json());
-    await api("/actions/workflows/vorstwacht.yml/dispatches", { method:"POST", body: JSON.stringify({ ref: repo.default_branch || "main", inputs: { actie: "test" } }) });
-    msg("ghMsg","Aangevraagd. Binnen een minuut of twee komt de testmelding op je telefoon.","ok");
-  } catch(e){ msg("ghMsg","Testmelding lukte niet: "+e.message+".","err"); }
+    const repo = await api("");
+    stap = "workflow";
+    const lijst = await api("/actions/workflows");
+    const wf = (lijst.workflows || []).find(w => w.path === ".github/workflows/vorstwacht.yml");
+    if (!wf) {
+      const elders = (lijst.workflows || []).map(w => w.path).join(", ");
+      throw new Error("het bestand .github/workflows/vorstwacht.yml staat niet in je repository" +
+        (elders ? " (wel gevonden: " + elders + ")" : "") +
+        ". Maak het aan via Add file → Create new file met precies die naam, en plak de inhoud erin");
+    }
+    if (wf.state && wf.state !== "active") throw new Error("de workflow staat uit. Zet hem aan via het tabblad Actions");
+    stap = "starten";
+    await api(`/actions/workflows/${wf.id}/dispatches`, { method:"POST", body: JSON.stringify({ ref: repo.default_branch || "main", inputs: { actie: "test" } }) });
+    msg("ghMsg","Aangevraagd. Binnen een minuut of twee komt de testmelding op je telefoon. Komt hij niet? Kijk bij Actions op GitHub of NTFY_TOPIC als secret is ingesteld.","ok");
+  } catch(e){
+    let m = e.message;
+    if (stap === "repository" && /niet gevonden/.test(m)) m = `repository ${gh.owner}/${gh.repo} niet gevonden. Controleer gebruikersnaam en repositorynaam (hoofdletters tellen niet, streepjes wel)`;
+    else if (stap !== "repository" && /niet gevonden|rechten/.test(m)) m = "de sleutel mag niet bij Actions. Geef de sleutel bij Permissions ook 'Actions: Read and write' (op GitHub: token bewerken), of maak een nieuwe";
+    msg("ghMsg","Testmelding lukte niet: "+m+".","err");
+  }
 };
 
 // ---------- Installeren ----------

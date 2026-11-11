@@ -1,5 +1,5 @@
 // Het weer: service worker: app offline beschikbaar, laatste weerbericht bewaard.
-const VERSIE = "hetweer-v2";
+const VERSIE = "hetweer-v3";
 const APP = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {
