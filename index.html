@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2f6f9f">
+<title>Het weer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{--bg:#eef3f7;--card:#fff;--ink:#14212e;--muted:#5d6b78;--line:#dbe4eb;--ice:#2f6f9f;--ice-ink:#1f5b88;--ice-soft:#e1edf6;--ok:#2e7d4f;--warn:#b5482a;--warn-soft:#fbe9e3}
+  @media (prefers-color-scheme:dark){:root{--bg:#0f1720;--card:#17222d;--ink:#e6eef5;--muted:#93a3b2;--line:#263543;--ice:#4f8fbf;--ice-ink:#8cc2e8;--ice-soft:#1c3142;--ok:#6cc08f;--warn:#ec8a6c;--warn-soft:#3a2420}}
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+  header{background:var(--ice);color:#fff;padding:18px 18px 14px}
+  header .top{display:flex;align-items:center;justify-content:space-between;gap:10px;max-width:640px;margin:0 auto}
+  header h1{margin:0;font-size:1.35rem;font-weight:700;letter-spacing:-.01em}
+  header .loc{max-width:640px;margin:2px auto 0;opacity:.9;font-size:.92rem}
+  .iconbtn{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:10px;padding:8px 12px;font:inherit;font-size:.9rem;cursor:pointer}
+  nav{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line)}
+  nav .tabs{display:flex;max-width:640px;margin:0 auto}
+  nav button{flex:1;border:0;background:none;font:inherit;font-weight:600;color:var(--muted);padding:13px 6px;border-bottom:3px solid transparent;cursor:pointer}
+  nav button[aria-selected=true]{color:var(--ice-ink);border-bottom-color:var(--ice)}
+  main{max-width:640px;margin:0 auto;padding:14px 14px 40px}
+  .banner{border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line)}
+  .banner.frost{background:var(--ice-soft);border-color:transparent}
+  .banner .em{font-size:1.7rem;line-height:1}
+  .banner b{display:block}
+  .banner small{color:var(--muted)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:14px}
+  .dayhead{padding:10px 14px;font-weight:700;font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--bg);border-top:1px solid var(--line)}
+  .card .dayhead:first-child{border-top:0}
+  .hr{display:grid;grid-template-columns:3rem 1.8rem 3.6rem 1fr;align-items:center;gap:8px;padding:9px 14px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .dayhead + .hr{border-top:0}
+  .hr .t{color:var(--muted)}
+  .hr .w{font-size:1.2rem;text-align:center}
+  .temp{font-weight:700}
+  .temp.cold{color:var(--ice-ink)}
+  .hr .det{font-size:.8rem;color:var(--muted);line-height:1.3}
+  .hr .wind{font-size:.82rem;color:var(--muted);text-align:right;white-space:nowrap}
+  .hr.now{background:var(--ice-soft)}
+  .dr{display:grid;grid-template-columns:5.2rem 2rem 1fr auto;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .dr:first-child{border-top:0}
+  .dr .d{font-weight:600}
+  .dr .d small{display:block;font-weight:400;color:var(--muted);font-size:.8rem}
+  .dr .w{font-size:1.4rem;text-align:center}
+  .dr .mm{display:flex;align-items:baseline;gap:8px}
+  .dr .mm .lo{color:var(--muted)}
+  .dr .mm .lo.cold{color:var(--ice-ink);font-weight:700}
+  .dr .mm .hi{font-weight:700}
+  .dr .x{font-size:.82rem;color:var(--muted);text-align:right;line-height:1.35}
+  .sec{padding:16px}
+  .sec h2{margin:0 0 4px;font-size:1rem}
+  .sec p.note{margin:0 0 12px;color:var(--muted);font-size:.88rem}
+  label{display:block;font-weight:600;font-size:.9rem;margin:12px 0 6px}
+  input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  input:focus,select:focus{outline:2px solid var(--ice);outline-offset:1px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .inline{display:flex;gap:8px}
+  .inline input{flex:1}
+  .btn{font:inherit;font-weight:600;border:0;border-radius:10px;padding:11px 14px;background:var(--ice);color:#fff;cursor:pointer}
+  .btn.sec2{background:var(--ice-soft);color:var(--ice-ink)}
+  .btn.full{width:100%;margin-top:14px}
+  .btn:disabled{opacity:.5;cursor:default}
+  .results{margin-top:8px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .results button{display:block;width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;padding:10px 12px;cursor:pointer}
+  .results button:first-child{border-top:0}
+  .results small{color:var(--muted)}
+  .switch{display:flex;align-items:center;gap:10px;margin-top:14px;font-weight:600}
+  .switch input{width:22px;height:22px}
+  .msg{margin-top:10px;font-size:.88rem;min-height:1.2em}
+  .msg.ok{color:var(--ok)} .msg.err{color:var(--warn)}
+  details{margin-top:10px;font-size:.88rem;color:var(--muted)}
+  details summary{cursor:pointer;font-weight:600;color:var(--ice-ink)}
+  details ol{padding-left:1.2rem;margin:8px 0}
+  .empty{padding:30px 16px;text-align:center;color:var(--muted)}
+  .hidden{display:none!important}
+  .src{font-size:.78rem;color:var(--muted);text-align:center;margin-top:6px}
+  .src a{color:inherit}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>Het weer</h1>
+    <div>
+      <button class="iconbtn hidden" id="installBtn">Installeren</button>
+      <button class="iconbtn" id="refreshBtn" aria-label="Vernieuwen">↻</button>
+    </div>
+  </div>
+  <div class="loc" id="locLine">Nog geen locatie gekozen</div>
+</header>
+
+<nav><div class="tabs" role="tablist">
+  <button role="tab" data-tab="uur" aria-selected="true">48 uur</button>
+  <button role="tab" data-tab="week" aria-selected="false">Week</button>
+  <button role="tab" data-tab="inst" aria-selected="false">Instellingen</button>
+</div></nav>
+
+<main>
+  <div id="banner" class="banner hidden"></div>
+
+  <section id="tab-uur">
+    <div class="card" id="hourly"><div class="empty">Kies eerst een locatie bij Instellingen.</div></div>
+  </section>
+
+  <section id="tab-week" class="hidden">
+    <div class="card" id="daily"><div class="empty">Kies eerst een locatie bij Instellingen.</div></div>
+  </section>
+
+  <section id="tab-inst" class="hidden">
+    <div class="card"><div class="sec">
+      <h2>Locatie</h2>
+      <p class="note">Zoek je plaats en tik op het juiste resultaat.</p>
+      <div class="inline">
+        <input id="q" placeholder="Plaatsnaam" autocomplete="off" enterkeyhint="search">
+        <button class="btn" id="searchBtn">Zoek</button>
+      </div>
+      <div id="results" class="results hidden"></div>
+      <div class="msg" id="locMsg"></div>
+    </div></div>
+
+    <div class="card"><div class="sec">
+      <h2>Vorstmelding</h2>
+      <p class="note">Op dit tijdstip kijkt de app vooruit. Wordt het zo koud of kouder, dan krijg je een pushmelding via ntfy.</p>
+      <div class="row">
+        <div><label for="hour">Tijdstip</label><select id="hour"></select></div>
+        <div><label for="thr">Melden bij of onder (°C)</label><input id="thr" type="text" inputmode="decimal" autocomplete="off"></div>
+      </div>
+      <label for="ahead">Vooruit kijken</label>
+      <select id="ahead">
+        <option value="12">Komende 12 uur</option>
+        <option value="24">Komende 24 uur</option>
+        <option value="36">Komende 36 uur</option>
+        <option value="48">Komende 48 uur</option>
+      </select>
+      <label class="switch"><input type="checkbox" id="active"> Meldingen staan aan</label>
+      <button class="btn full" id="saveBtn">Opslaan</button>
+      <div class="msg" id="saveMsg"></div>
+    </div></div>
+
+    <div class="card"><div class="sec">
+      <h2>Koppeling met GitHub</h2>
+      <p class="note">De meldingen komen van GitHub. Met deze koppeling stuurt de app je instellingen daarheen. De sleutel blijft alleen op dit apparaat.</p>
+      <div class="row">
+        <div><label for="ghOwner">Gebruikersnaam</label><input id="ghOwner" autocomplete="off" autocapitalize="off"></div>
+        <div><label for="ghRepo">Repository</label><input id="ghRepo" autocomplete="off" autocapitalize="off"></div>
+      </div>
+      <label for="ghToken">Toegangssleutel (token)</label>
+      <input id="ghToken" type="password" autocomplete="off" placeholder="github_pat_…">
+      <details>
+        <summary>Hoe maak ik een sleutel?</summary>
+        <ol>
+          <li>Ga op GitHub naar Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token.</li>
+          <li>Kies bij Repository access <b>Only select repositories</b> en selecteer je repository (vorstwacht).</li>
+          <li>Zet bij Permissions <b>Contents</b> op <i>Read and write</i> en <b>Actions</b> op <i>Read and write</i>.</li>
+          <li>Kies een vervaldatum, maak de sleutel aan en plak hem hierboven.</li>
+        </ol>
+      </details>
+      <div class="row">
+        <button class="btn full sec2" id="ghSaveBtn">Koppeling opslaan</button>
+        <button class="btn full sec2" id="testBtn">Testmelding</button>
+      </div>
+      <div class="msg" id="ghMsg"></div>
+    </div></div>
+  </section>
+
+  <p class="src">Weerdata: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · <span id="updated"></span></p>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const DEFAULTS = { locatie:null, latitude:null, longitude:null, tijdstip:"17:00", drempel_celsius:0, uren_vooruit:24, aan:true };
+let cfg = Object.assign({}, DEFAULTS, store.get("vw_cfg", {}));
+let gh = store.get("vw_gh", null);
+
+// ---------- Weer-iconen ----------
+function weer(code, dag=1){
+  const z = dag ? "☀️" : "🌙", lz = dag ? "🌤️" : "🌙";
+  const m = {0:[z,"Helder"],1:[lz,"Overwegend helder"],2:["⛅","Half bewolkt"],3:["☁️","Bewolkt"],
+    45:["🌫️","Mist"],48:["🌫️","Rijpmist"],51:["🌦️","Lichte motregen"],53:["🌦️","Motregen"],55:["🌧️","Dichte motregen"],
+    56:["🧊","Aanvriezende motregen"],57:["🧊","Aanvriezende motregen"],61:["🌧️","Lichte regen"],63:["🌧️","Regen"],65:["🌧️","Zware regen"],
+    66:["🧊","IJzel"],67:["🧊","IJzel"],71:["🌨️","Lichte sneeuw"],73:["🌨️","Sneeuw"],75:["❄️","Zware sneeuw"],77:["🌨️","Sneeuwkorrels"],
+    80:["🌦️","Lichte buien"],81:["🌧️","Buien"],82:["⛈️","Zware buien"],85:["🌨️","Sneeuwbuien"],86:["❄️","Zware sneeuwbuien"],
+    95:["⛈️","Onweer"],96:["⛈️","Onweer met hagel"],99:["⛈️","Onweer met hagel"]};
+  return m[code] || ["·","Onbekend"];
+}
+const DAGEN = ["zondag","maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag"];
+const MAANDEN = ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"];
+function parse(s){ const [d,t="00:00"] = s.split("T"); const [y,mo,da] = d.split("-").map(Number); const [h,mi] = t.split(":").map(Number); return new Date(y,mo-1,da,h,mi); }
+function dagNaam(dt, kort){
+  const vandaag = new Date(); vandaag.setHours(0,0,0,0);
+  const x = new Date(dt); x.setHours(0,0,0,0);
+  const diff = Math.round((x - vandaag)/864e5);
+  if (diff === 0) return "Vandaag";
+  if (diff === 1) return "Morgen";
+  const n = DAGEN[dt.getDay()];
+  return kort ? n.slice(0,2) : n[0].toUpperCase()+n.slice(1);
+}
+const datum = dt => dt.getDate()+" "+MAANDEN[dt.getMonth()];
+const uur = dt => String(dt.getHours()).padStart(2,"0")+":00";
+const graden = v => (Math.round(v*10)/10).toLocaleString("nl-NL",{minimumFractionDigits:1,maximumFractionDigits:1})+"°";
+
+// ---------- Weer ophalen ----------
+async function laadWeer(){
+  if (cfg.latitude == null) { render(null); return; }
+  const p = new URLSearchParams({
+    latitude: cfg.latitude, longitude: cfg.longitude, timezone: "Europe/Amsterdam", forecast_days: 7,
+    hourly: "temperature_2m,soil_temperature_0cm,precipitation,precipitation_probability,weather_code,wind_speed_10m,is_day",
+    daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,sunrise,sunset"
+  });
+  $("refreshBtn").disabled = true;
+  try {
+    const r = await fetch("https://api.open-meteo.com/v1/forecast?"+p);
+    if (!r.ok) throw new Error("HTTP "+r.status);
+    const data = await r.json();
+    store.set("vw_last", {data, at: Date.now()});
+    render(data, Date.now());
+  } catch(e) {
+    const last = store.get("vw_last", null);
+    if (last) render(last.data, last.at, true);
+    else $("hourly").innerHTML = $("daily").innerHTML = '<div class="empty">Kon het weer niet ophalen. Controleer je verbinding.</div>';
+  } finally { $("refreshBtn").disabled = false; }
+}
+
+function render(data, at, offline){
+  $("locLine").textContent = cfg.locatie || "Nog geen locatie gekozen";
+  if (!data) { $("banner").classList.add("hidden"); return; }
+  const thr = Number(cfg.drempel_celsius);
+  const H = data.hourly, D = data.daily;
+  const nu = new Date(); nu.setMinutes(0,0,0);
+
+  // 48 uur
+  let start = H.time.findIndex(t => parse(t) >= nu); if (start < 0) start = 0;
+  let html = "", vorigeDag = null;
+  for (let i = start; i < Math.min(start+48, H.time.length); i++){
+    const dt = parse(H.time[i]);
+    const dkey = dt.toDateString();
+    if (dkey !== vorigeDag){ html += `<div class="dayhead">${dagNaam(dt)} · ${datum(dt)}</div>`; vorigeDag = dkey; }
+    const [em, oms] = weer(H.weather_code[i], H.is_day[i]);
+    const t = H.temperature_2m[i], g = H.soil_temperature_0cm[i];
+    const neerslag = H.precipitation[i] > 0 ? `${String(H.precipitation[i]).replace(".",",")} mm` : (H.precipitation_probability[i] >= 20 ? `${H.precipitation_probability[i]}% kans` : "");
+    html += `<div class="hr${i===start?" now":""}">
+      <span class="t">${i===start?"Nu":uur(dt)}</span>
+      <span class="w" title="${oms}">${em}</span>
+      <span class="temp${t<=thr?" cold":""}">${graden(t)}</span>
+      <span class="det">${oms}${neerslag?" · "+neerslag:""}<br>${g!=null?"grond "+graden(g)+" · ":""}wind ${Math.round(H.wind_speed_10m[i])} km/u</span></div>`;
+  }
+  $("hourly").innerHTML = html;
+
+  // Week
+  html = "";
+  for (let i = 0; i < D.time.length; i++){
+    const dt = parse(D.time[i]);
+    const [em, oms] = weer(D.weather_code[i]);
+    const lo = D.temperature_2m_min[i], hi = D.temperature_2m_max[i];
+    const ns = D.precipitation_sum[i];
+    html += `<div class="dr">
+      <span class="d">${dagNaam(dt)}<small>${datum(dt)}</small></span>
+      <span class="w" title="${oms}">${em}</span>
+      <span class="mm"><span class="lo${lo<=thr?" cold":""}">${graden(lo)}</span><span class="hi">${graden(hi)}</span></span>
+      <span class="x">${ns>0?String(Math.round(ns*10)/10).replace(".",",")+" mm":"droog"}<br>${Math.round(D.wind_speed_10m_max[i])} km/u</span></div>`;
+  }
+  $("daily").innerHTML = html;
+
+  // Vorstbanner voor de ingestelde periode
+  const eind = start + Number(cfg.uren_vooruit);
+  let minI = start;
+  for (let i = start; i < Math.min(eind, H.time.length); i++) if (H.temperature_2m[i] < H.temperature_2m[minI]) minI = i;
+  const minT = H.temperature_2m[minI], minDt = parse(H.time[minI]);
+  const b = $("banner");
+  b.classList.remove("hidden");
+  const wanneer = `${dagNaam(minDt).toLowerCase()} om ${uur(minDt)}`;
+  if (minT <= thr){
+    b.className = "banner frost";
+    b.innerHTML = `<span class="em">❄️</span><div><b>Vorst verwacht: ${graden(minT)} ${wanneer}</b><small>Op of onder je grens van ${String(thr).replace(".",",")} °C in de komende ${cfg.uren_vooruit} uur</small></div>`;
+  } else {
+    b.className = "banner";
+    b.innerHTML = `<span class="em">✓</span><div><b>Geen vorst onder ${String(thr).replace(".",",")} °C</b><small>Laagste ${graden(minT)} ${wanneer} (komende ${cfg.uren_vooruit} uur)</small></div>`;
+  }
+  const tijd = new Date(at).toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"});
+  $("updated").textContent = (offline ? "offline, laatst bijgewerkt " : "bijgewerkt ") + tijd;
+}
+
+// ---------- Tabs ----------
+document.querySelectorAll("nav button").forEach(btn => btn.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b === btn));
+  ["uur","week","inst"].forEach(t => $("tab-"+t).classList.toggle("hidden", t !== btn.dataset.tab));
+  $("banner").style.display = btn.dataset.tab === "inst" ? "none" : "";
+}));
+
+// ---------- Instellingen ----------
+for (let h = 0; h < 24; h++){ const o = document.createElement("option"); o.value = String(h).padStart(2,"0")+":00"; o.textContent = o.value; $("hour").appendChild(o); }
+function vulFormulier(){
+  $("hour").value = /^\d\d:00$/.test(cfg.tijdstip) ? cfg.tijdstip : String(parseInt(cfg.tijdstip)||17).padStart(2,"0")+":00";
+  $("thr").value = cfg.drempel_celsius;
+  $("ahead").value = String(cfg.uren_vooruit);
+  if (!$("ahead").value) $("ahead").value = "24";
+  $("active").checked = cfg.aan !== false;
+  if (cfg.locatie) $("q").placeholder = cfg.locatie;
+}
+function msg(id, t, cls){ const m = $(id); m.textContent = t; m.className = "msg "+(cls||""); }
+
+async function zoek(){
+  const q = $("q").value.trim(); if (!q) return;
+  msg("locMsg","Zoeken…");
+  try {
+    const r = await fetch("https://geocoding-api.open-meteo.com/v1/search?"+new URLSearchParams({name:q,count:8,language:"nl",format:"json"}));
+    const res = (await r.json()).results || [];
+    const box = $("results"); box.innerHTML = "";
+    if (!res.length){ box.classList.add("hidden"); msg("locMsg","Niets gevonden. Probeer een andere schrijfwijze.","err"); return; }
+    res.forEach(p => {
+      const b = document.createElement("button");
+      const sub = [p.admin1, p.country].filter(Boolean).join(", ");
+      b.innerHTML = `${p.name} <small>${sub}</small>`;
+      b.onclick = async () => {
+        cfg.locatie = p.name + (p.admin1 ? ", "+p.admin1 : "");
+        cfg.latitude = Math.round(p.latitude*1e4)/1e4; cfg.longitude = Math.round(p.longitude*1e4)/1e4;
+        store.set("vw_cfg", cfg);
+        box.classList.add("hidden"); $("q").value = ""; vulFormulier();
+        msg("locMsg","Locatie ingesteld: "+cfg.locatie,"ok");
+        laadWeer();
+        await naarGitHub("saveMsg", true);
+      };
+      box.appendChild(b);
+    });
+    box.classList.remove("hidden"); msg("locMsg","");
+  } catch(e){ msg("locMsg","Zoeken lukte niet. Controleer je verbinding.","err"); }
+}
+$("searchBtn").onclick = zoek;
+$("q").addEventListener("keydown", e => { if (e.key === "Enter") zoek(); });
+
+$("saveBtn").onclick = async () => {
+  const thr = parseFloat(String($("thr").value).replace(",","."));
+  if (isNaN(thr)) { msg("saveMsg","Vul een geldige temperatuur in.","err"); return; }
+  cfg.tijdstip = $("hour").value; cfg.drempel_celsius = thr;
+  cfg.uren_vooruit = parseInt($("ahead").value,10); cfg.aan = $("active").checked;
+  store.set("vw_cfg", cfg);
+  laadWeer();
+  await naarGitHub("saveMsg");
+};
+
+// ---------- GitHub ----------
+function raad(){
+  const m = location.hostname.match(/^([^.]+)\.github\.io$/);
+  const repo = location.pathname.split("/").filter(Boolean)[0];
+  return { owner: m ? m[1] : "", repo: repo && !repo.includes(".") ? repo : "vorstwacht" };
+}
+function vulGh(){ const r = raad(); $("ghOwner").value = gh?.owner || r.owner; $("ghRepo").value = gh?.repo || r.repo; $("ghToken").value = gh?.token || ""; }
+async function api(pad, opties={}){
+  const r = await fetch(`https://api.github.com/repos/${gh.owner}/${gh.repo}${pad}`, Object.assign({}, opties, {
+    headers: Object.assign({ "Authorization": "Bearer "+gh.token, "Accept":"application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28" }, opties.headers||{})
+  }));
+  if (!r.ok) {
+    let t = ""; try { t = (await r.json()).message; } catch(e){}
+    const uitleg = {401:"sleutel ongeldig of verlopen",403:"sleutel mist rechten",404:"repository of bestand niet gevonden (controleer naam en rechten)"}[r.status];
+    throw new Error(uitleg || t || "HTTP "+r.status);
+  }
+  return r.status === 204 ? null : r.json();
+}
+const b64enc = s => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
+const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g,"")), c => c.charCodeAt(0)));
+
+async function naarGitHub(msgId, stil){
+  if (!gh?.token){
+    msg(msgId, stil ? "Opgeslagen op dit apparaat. Koppel GitHub om ook de meldingen aan te passen." : "Opgeslagen op dit apparaat. Koppel GitHub (hieronder) om ook de meldingen aan te passen.", "");
+    return;
+  }
+  msg(msgId, "Bezig met opslaan op GitHub…");
+  try {
+    const f = await api("/contents/config.json");
+    const oud = JSON.parse(b64dec(f.content));
+    const nieuw = Object.assign({}, oud, {
+      locatie: cfg.locatie || oud.locatie, tijdstip: cfg.tijdstip, drempel_celsius: cfg.drempel_celsius,
+      uren_vooruit: cfg.uren_vooruit, aan: cfg.aan
+    });
+    if (cfg.latitude != null){ nieuw.latitude = cfg.latitude; nieuw.longitude = cfg.longitude; }
+    if (JSON.stringify(nieuw) === JSON.stringify(oud)) { msg(msgId, "Opgeslagen. Instellingen op GitHub waren al gelijk.", "ok"); return; }
+    await api("/contents/config.json", { method:"PUT", body: JSON.stringify({
+      message: "Instellingen aangepast via de app", sha: f.sha, content: b64enc(JSON.stringify(nieuw, null, 2)+"\n")
+    })});
+    msg(msgId, `Opgeslagen. Melding om ${cfg.tijdstip} bij ${String(cfg.drempel_celsius).replace(".",",")} °C of kouder${cfg.aan?"":" (staat uit)"}.`, "ok");
+  } catch(e){ msg(msgId, "Op dit apparaat opgeslagen, maar niet op GitHub: "+e.message+".", "err"); }
+}
+
+$("ghSaveBtn").onclick = async () => {
+  gh = { owner: $("ghOwner").value.trim(), repo: $("ghRepo").value.trim(), token: $("ghToken").value.trim() };
+  if (!gh.owner || !gh.repo || !gh.token) { msg("ghMsg","Vul gebruikersnaam, repository en sleutel in.","err"); return; }
+  msg("ghMsg","Koppeling controleren…");
+  try {
+    const f = await api("/contents/config.json");
+    store.set("vw_gh", gh);
+    const c = JSON.parse(b64dec(f.content));
+    if (!cfg.locatie && c.locatie) {
+      cfg = Object.assign({}, cfg, c); store.set("vw_cfg", cfg); vulFormulier(); laadWeer();
+    }
+    msg("ghMsg","Gekoppeld. Wijzigingen bij Opslaan gaan nu ook naar GitHub.","ok");
+  } catch(e){ msg("ghMsg","Koppelen lukte niet: "+e.message+".","err"); }
+};
+
+$("testBtn").onclick = async () => {
+  if (!gh?.token) { msg("ghMsg","Sla eerst de koppeling op.","err"); return; }
+  msg("ghMsg","Testmelding aanvragen…");
+  try {
+    const repo = await fetch(`https://api.github.com/repos/${gh.owner}/${gh.repo}`, {headers:{Authorization:"Bearer "+gh.token}}).then(r => r.json());
+    await api("/actions/workflows/vorstwacht.yml/dispatches", { method:"POST", body: JSON.stringify({ ref: repo.default_branch || "main", inputs: { actie: "test" } }) });
+    msg("ghMsg","Aangevraagd. Binnen een minuut of twee komt de testmelding op je telefoon.","ok");
+  } catch(e){ msg("ghMsg","Testmelding lukte niet: "+e.message+".","err"); }
+};
+
+// ---------- Installeren ----------
+let installEvent = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvent = e; $("installBtn").classList.remove("hidden"); });
+$("installBtn").onclick = async () => { if (!installEvent) return; installEvent.prompt(); await installEvent.userChoice; installEvent = null; $("installBtn").classList.add("hidden"); };
+window.addEventListener("appinstalled", () => $("installBtn").classList.add("hidden"));
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+
+$("refreshBtn").onclick = laadWeer;
+document.addEventListener("visibilitychange", () => { if (!document.hidden) laadWeer(); });
+
+// ---------- Start ----------
+(async () => {
+  // Eerste keer: neem de instellingen over uit config.json op de site.
+  if (!store.get("vw_cfg", null)) {
+    try {
+      const c = await fetch("config.json", {cache:"no-store"}).then(r => r.json());
+      cfg = Object.assign({}, DEFAULTS, c);
+      if (cfg.latitude == null && cfg.locatie) {
+        const res = (await fetch("https://geocoding-api.open-meteo.com/v1/search?"+new URLSearchParams({name:cfg.locatie,count:1,language:"nl",format:"json"})).then(r=>r.json())).results;
+        if (res && res[0]) { cfg.latitude = res[0].latitude; cfg.longitude = res[0].longitude; }
+      }
+      store.set("vw_cfg", cfg);
+    } catch(e){}
+  }
+  vulFormulier(); vulGh();
+  const last = store.get("vw_last", null);
+  if (last && cfg.latitude != null) render(last.data, last.at, true);
+  laadWeer();
+})();
+</script>
+</body>
+</html>
