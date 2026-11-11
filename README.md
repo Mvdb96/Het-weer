@@ -48,12 +48,19 @@ Tabblad **Instellingen**:
 Bij **Fietsmeldingen** maak je zoveel meldingen als je wilt (bijv. *Werk* en *Sport*).
 Per melding kies je de reisdagen, vertrek heen en terug, de reistijd, hoe laat de melding komt,
 en bij welk advies je een melding wilt: 🚲 fietsen, ☂️ fietsen met regenkleding of 🚗 beter de auto.
-Komt de melding later op de dag dan je vertrek (bijv. 21:00 voor een rit om 07:30), dan gaat het
-advies over de volgende dag.
+Bij **Melding krijgen** kies je *op de reisdag zelf* of *de dag ervoor* (bijv. om 21:00 de avond
+voor je rit). Kies je "op de reisdag zelf" met een tijdstip na je vertrek, dan gaat het advies
+vanzelf over de volgende dag.
 
-Bij **Grenzen voor slecht weer** stel je in vanaf hoeveel regen, regenkans, wind, windstoten en
-welke temperatuur (gladheid) het advies "beter de auto" wordt. Onweer, sneeuw en ijzel geven altijd
-dat advies. Het actuele advies staat ook bovenaan het tabblad *48 uur*.
+Bij **Weer voor het fietsadvies** zet je per weersfactor aan of uit wat meetelt, met je eigen grens:
+buien (mm/uur), hoe lang het regent tijdens je rit (minuten), regenkans, wind, windstoten,
+gladheid, onweer, sneeuw en ijzel. De regen wordt per kwartier bekeken, dus een korte lichte bui
+geeft "fietsen, met regenkleding" en langer regenen "beter de auto".
+
+**Auto krabben:** voor je rit heen kijkt de app naar de 8 uur ervoor. Vriest het en is de lucht
+vochtig, of is het koud, helder en vochtig, dan staat er een krabwaarschuwing bij het advies.
+Vink bij een melding *Auto krabben* aan om ook een melding te krijgen als het advies verder
+"fietsen" is. Het actuele advies staat bovenaan het tabblad *48 uur*.
 
 De sleutel blijft alleen op je telefoon. Zonder koppeling kun je `config.json` ook
 gewoon op GitHub bewerken met het potloodje.
