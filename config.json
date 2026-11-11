@@ -1,7 +1,17 @@
 {
-  "locatie": "Apeldoorn",
-  "tijdstip": "17:00",
-  "drempel_celsius": 0,
+  "locatie": "Ederveen, Gelderland",
+  "tijdstip": "18:00",
+  "drempel_celsius": 1,
   "uren_vooruit": 24,
-  "aan": true
+  "aan": true,
+  "fietsmeldingen": [],
+  "fietsgrenzen": {
+    "max_regen_mm": 1,
+    "max_regenkans": 70,
+    "max_wind_kmh": 40,
+    "max_windstoten_kmh": 65,
+    "min_temp": 0
+  },
+  "latitude": 52.0633,
+  "longitude": 5.5778
 }
