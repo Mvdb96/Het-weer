@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Het weer (vorstmelding): stuurt een pushmelding (via ntfy) als er vorst verwacht wordt.
+"""Het weer: vorstmelding en fietsadvies via ntfy-pushmeldingen.
 
 Instellingen staan in config.json. Het ntfy-onderwerp komt uit de
 omgevingsvariabele NTFY_TOPIC (op GitHub: een repository secret).
 
 Gebruik:
-  python vorstwacht.py          # controleer alleen als het nu het ingestelde uur is
-  python vorstwacht.py --nu     # controleer meteen, ongeacht het tijdstip
+  python vorstwacht.py          # elk uur: doet alleen iets op de ingestelde uren
+  python vorstwacht.py --nu     # vorstcontrole meteen, ongeacht het tijdstip
+  python vorstwacht.py --fiets  # fietsadvies meteen versturen
   python vorstwacht.py --test   # stuur een testmelding
 """
 import json
@@ -14,34 +15,83 @@ import os
 import sys
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 TZ = ZoneInfo("Europe/Amsterdam")
 CONFIG = Path(__file__).with_name("config.json")
 NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh").rstrip("/")
+DAGNAMEN = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
+
+NIVEAUS = ["fiets", "regenkleding", "auto"]
+
+MELDING_STANDAARD = {
+    "naam": "Werk",
+    "aan": True,
+    "tijdstip": "06:00",           # wanneer de melding komt (hele uren)
+    "dagen": [1, 2, 3, 4, 5],      # 1 = maandag ... 7 = zondag
+    "heen": "07:30",
+    "terug": "17:00",              # leeg laten ("") als je alleen heen gaat
+    "reistijd_min": 30,
+    "melden_bij": NIVEAUS,         # bij welk advies je een melding wilt
+}
+
+GRENZEN_STANDAARD = {
+    "max_regen_mm": 1.0,           # per uur
+    "max_regenkans": 70,           # procent
+    "max_wind_kmh": 40,
+    "max_windstoten_kmh": 65,
+    "min_temp": 0,                 # bij deze temperatuur of kouder: kans op gladheid
+}
+
+
+def fietsinstellingen(c):
+    """Leest fietsmeldingen en -grenzen, ook uit de oude vorm 'fietsadvies'."""
+    oud = c.get("fietsadvies") or {}
+    grenzen = dict(GRENZEN_STANDAARD)
+    grenzen.update({k: oud[k] for k in GRENZEN_STANDAARD if k in oud})
+    grenzen.update(c.get("fietsgrenzen") or {})
+    lijst = c.get("fietsmeldingen")
+    if lijst is None and oud:
+        m = {k: oud[k] for k in MELDING_STANDAARD if k in oud}
+        m["melden_bij"] = ["auto"] if oud.get("melding") == "alleen_auto" else NIVEAUS
+        lijst = [m]
+    meldingen = []
+    for m in lijst or []:
+        x = dict(MELDING_STANDAARD)
+        x.update(m)
+        meldingen.append(x)
+    return meldingen, grenzen
+
+
+def tijd(s, standaard="00:00"):
+    s = str(s or standaard)
+    uur, minuut = (int(x) for x in s.split(":"))
+    if not (0 <= uur <= 23 and 0 <= minuut <= 59):
+        raise ValueError(f"tijd '{s}' moet de vorm UU:MM hebben")
+    return uur, minuut
 
 
 def lees_config():
     with open(CONFIG, encoding="utf-8") as f:
         c = json.load(f)
-    uur, minuut = (int(x) for x in str(c.get("tijdstip", "17:00")).split(":"))
-    if not (0 <= uur <= 23 and 0 <= minuut <= 59):
-        raise ValueError("tijdstip moet de vorm UU:MM hebben, bijv. 17:00")
+    meldingen, grenzen = fietsinstellingen(c)
     return {
         "locatie": str(c["locatie"]).strip(),
-        "uur": uur,
+        "uur": tijd(c.get("tijdstip"), "17:00")[0],
         "drempel": float(c.get("drempel_celsius", 0)),
         "uren_vooruit": max(1, min(int(c.get("uren_vooruit", 24)), 72)),
         "aan": bool(c.get("aan", True)),
         "lat": c.get("latitude"),
         "lon": c.get("longitude"),
+        "fietsmeldingen": meldingen,
+        "fietsgrenzen": grenzen,
     }
 
 
 def haal_json(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "vorstwacht"})
+    req = urllib.request.Request(url, headers={"User-Agent": "het-weer"})
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.load(r)
 
@@ -59,81 +109,202 @@ def zoek_locatie(naam):
     return r["latitude"], r["longitude"], label
 
 
-def laagste_temperatuur(lat, lon, uren):
-    dagen = min(16, uren // 24 + 2)
+def verwachting(lat, lon):
     url = "https://api.open-meteo.com/v1/forecast?" + urllib.parse.urlencode({
         "latitude": lat, "longitude": lon,
-        "hourly": "temperature_2m",
+        "hourly": "temperature_2m,precipitation,precipitation_probability,"
+                  "weather_code,wind_speed_10m,wind_gusts_10m",
         "timezone": "Europe/Amsterdam",
-        "forecast_days": dagen,
+        "forecast_days": 4,
     })
-    data = haal_json(url)["hourly"]
+    h = haal_json(url)["hourly"]
+    uren = {}
+    for i, s in enumerate(h["time"]):
+        uren[datetime.fromisoformat(s)] = {k: h[k][i] for k in h if k != "time"}
+    return uren
+
+
+# ---------------- Vorst ----------------
+
+def laagste_temperatuur(uren, aantal):
     nu = datetime.now(TZ).replace(minute=0, second=0, microsecond=0, tzinfo=None)
-    eind = nu + timedelta(hours=uren)
-    kandidaten = [
-        (t, datetime.fromisoformat(s))
-        for s, t in zip(data["time"], data["temperature_2m"])
-        if t is not None and nu <= datetime.fromisoformat(s) <= eind
-    ]
+    eind = nu + timedelta(hours=aantal)
+    kandidaten = [(v["temperature_2m"], t) for t, v in uren.items()
+                  if v["temperature_2m"] is not None and nu <= t <= eind]
     if not kandidaten:
         raise RuntimeError("Geen verwachting ontvangen van Open-Meteo.")
     return min(kandidaten)
 
 
-def stuur_melding(titel, tekst, prioriteit="high"):
+def kort(dt):
+    return f"{DAGNAMEN[dt.weekday()][:2]} {dt:%H:%M}"
+
+
+def vorstcontrole(c, uren, label):
+    temp, moment = laagste_temperatuur(uren, c["uren_vooruit"])
+    print(f"Vorst: laagste {temp:.1f} °C om {kort(moment)} "
+          f"(komende {c['uren_vooruit']} uur, drempel {c['drempel']:g} °C)")
+    if temp <= c["drempel"]:
+        stuur_melding("Vorst verwacht",
+                      f"{label}: het wordt {temp:.1f} °C ({kort(moment)}). "
+                      f"Dat is op of onder je grens van {c['drempel']:g} °C.",
+                      tags="snowflake")
+        print("Vorstmelding verstuurd.")
+
+
+# ---------------- Fietsadvies ----------------
+
+def nl(x):
+    return f"{x:.1f}".replace(".", ",")
+
+
+def rituren(dag, start, minuten):
+    """Hele uren die een rit van `minuten` vanaf `start` (UU:MM) raakt."""
+    u, m = tijd(start)
+    begin = datetime.combine(dag, datetime.min.time()).replace(hour=u, minute=m)
+    eind = begin + timedelta(minutes=max(1, minuten) - 1)
+    t = begin.replace(minute=0)
+    while t <= eind:
+        yield t
+        t += timedelta(hours=1)
+
+
+def beoordeel(uren, dag, f, g):
+    """Geeft (niveau, redenen) per rit. niveau: 'fiets', 'regenkleding' of 'auto'."""
+    ritten = [("heen", f["heen"])]
+    if f.get("terug"):
+        ritten.append(("terug", f["terug"]))
+    resultaat = []
+    for naam, start in ritten:
+        data = [uren[t] for t in rituren(dag, start, int(f["reistijd_min"])) if t in uren]
+        if not data:
+            continue
+        hard, zacht = [], []
+        regen = max(d["precipitation"] or 0 for d in data)
+        kans = max(d["precipitation_probability"] or 0 for d in data)
+        wind = max(d["wind_speed_10m"] or 0 for d in data)
+        stoot = max(d["wind_gusts_10m"] or 0 for d in data)
+        temp = min(d["temperature_2m"] for d in data)
+        codes = {d["weather_code"] for d in data}
+        if codes & {95, 96, 99}:
+            hard.append("onweer")
+        if codes & {71, 73, 75, 77, 85, 86}:
+            hard.append("sneeuw")
+        if codes & {56, 57, 66, 67}:
+            hard.append("ijzel")
+        if temp <= float(g["min_temp"]):
+            hard.append(f"kans op gladheid ({temp:.0f} °C)")
+        if regen > float(g["max_regen_mm"]):
+            hard.append(f"{nl(regen)} mm regen")
+        elif kans >= float(g["max_regenkans"]):
+            hard.append(f"{kans:.0f}% kans op regen")
+        elif regen >= 0.1 or kans >= 30:
+            zacht.append(f"kans op een bui ({kans:.0f}%)" if regen < 0.1 else f"lichte regen ({nl(regen)} mm)")
+        if wind >= float(g["max_wind_kmh"]):
+            hard.append(f"harde wind ({wind:.0f} km/u)")
+        elif stoot >= float(g["max_windstoten_kmh"]):
+            hard.append(f"windstoten tot {stoot:.0f} km/u")
+        niveau = "auto" if hard else ("regenkleding" if zacht else "fiets")
+        resultaat.append((naam, start, niveau, hard or zacht, round(temp)))
+    return resultaat
+
+
+def doeldag(f, nu):
+    """Vandaag als de melding vóór vertrek komt, anders morgen."""
+    hu, hm = tijd(f["heen"])
+    mu, _ = tijd(f["tijdstip"])
+    return nu.date() if mu * 60 <= hu * 60 + hm else nu.date() + timedelta(days=1)
+
+
+def fietsadvies(f, g, uren, label, geforceerd=False):
+    nu = datetime.now(TZ)
+    dag = doeldag(f, nu)
+    if geforceerd:
+        # Handmatig: vandaag zolang de laatste rit nog moet komen, anders morgen.
+        laatste = max(tijd(x) for x in (f["heen"], f.get("terug")) if x)
+        dag = nu.date() if (nu.hour, nu.minute) < laatste else nu.date() + timedelta(days=1)
+    if not geforceerd and dag.isoweekday() not in [int(x) for x in f["dagen"]]:
+        print(f"Fietsadvies {f['naam']}: {DAGNAMEN[dag.weekday()]} is geen reisdag.")
+        return
+    ritten = beoordeel(uren, dag, f, g)
+    if not ritten:
+        print("Fietsadvies: geen verwachting voor de reistijden.")
+        return
+    volgorde = {"fiets": 0, "regenkleding": 1, "auto": 2}
+    slechtst = max(ritten, key=lambda r: volgorde[r[2]])[2]
+    wanneer = "vandaag" if dag == nu.date() else "morgen"
+    titel, tags = {
+        "fiets": (f"Fietsweer {wanneer}", "bicyclist"),
+        "regenkleding": (f"Fietsen {wanneer}, met regenkleding", "bicyclist,umbrella"),
+        "auto": (f"Beter de auto {wanneer}", "car"),
+    }[slechtst]
+    if f.get("naam"):
+        titel = f"{f['naam']}: {titel[0].lower()}{titel[1:]}"
+    regels = []
+    for naam, start, niveau, redenen, temp in ritten:
+        icoon = {"fiets": "🚲", "regenkleding": "🚲☂️", "auto": "🚗"}[niveau]
+        uitleg = ", ".join(redenen) if redenen else "droog, weinig wind"
+        regels.append(f"{icoon} {naam.capitalize()} {start}: {uitleg} · {temp} °C")
+    tekst = f"{label}\n" + "\n".join(regels)
+    print(titel + "\n" + tekst)
+    if slechtst not in (f.get("melden_bij") or NIVEAUS) and not geforceerd:
+        print(f"Geen melding: advies '{slechtst}' staat niet aan bij deze melding.")
+        return
+    stuur_melding(titel, tekst, prioriteit="default", tags=tags)
+    print("Fietsadvies verstuurd.")
+
+
+# ---------------- Melding ----------------
+
+def stuur_melding(titel, tekst, prioriteit="high", tags="snowflake"):
     topic = os.environ.get("NTFY_TOPIC", "").strip()
     if not topic:
-        print("NTFY_TOPIC is niet ingesteld; melding niet verstuurd:\n" + tekst)
+        print("NTFY_TOPIC is niet ingesteld; melding niet verstuurd.")
         return False
     req = urllib.request.Request(
         f"{NTFY_SERVER}/{urllib.parse.quote(topic)}",
         data=tekst.encode("utf-8"),
         method="POST",
-        headers={"Title": titel, "Priority": prioriteit, "Tags": "snowflake"},
+        # Emoji in de titel komen via Tags; de titel zelf blijft gewone tekst.
+        headers={"Title": titel, "Priority": prioriteit, "Tags": tags},
     )
     with urllib.request.urlopen(req, timeout=30) as r:
         r.read()
     return True
 
 
-def dag(dt):
-    namen = ["ma", "di", "wo", "do", "vr", "za", "zo"]
-    return f"{namen[dt.weekday()]} {dt:%H:%M}"
-
-
 def main(args):
     c = lees_config()
 
     if "--test" in args:
-        stuur_melding("Het weer: test", f"Testmelding voor {c['locatie']}. Het werkt!", "default")
+        stuur_melding("Het weer: test", f"Testmelding voor {c['locatie']}. Het werkt!", "default", "white_check_mark")
         print("Testmelding verstuurd.")
         return 0
 
-    if not c["aan"]:
-        print("Vorstmelding staat uit (\"aan\": false in config.json).")
-        return 0
-
     nu = datetime.now(TZ)
-    if "--nu" not in args and nu.hour != c["uur"]:
-        print(f"Het is {nu:%H:%M}; controle pas om {c['uur']:02d}:00. Niets te doen.")
+    vorst_nu = "--nu" in args or (c["aan"] and nu.hour == c["uur"])
+    geforceerd = "--fiets" in args
+    fiets_nu = [f for f in c["fietsmeldingen"]
+                if (geforceerd and f.get("aan")) or (f.get("aan") and nu.hour == tijd(f["tijdstip"])[0])]
+    if geforceerd and not fiets_nu:
+        print("Er staat geen fietsmelding aan.")
+    if "--nu" in args and not c["aan"]:
+        print("Let op: vorstmelding staat uit, maar wordt nu toch gecontroleerd.")
+
+    if not (vorst_nu or fiets_nu):
+        print(f"Het is {nu:%H:%M}; niets te doen op dit uur.")
         return 0
 
     if c["lat"] is not None and c["lon"] is not None:
         lat, lon, label = float(c["lat"]), float(c["lon"]), c["locatie"]
     else:
         lat, lon, label = zoek_locatie(c["locatie"])
+    uren = verwachting(lat, lon)
 
-    temp, moment = laagste_temperatuur(lat, lon, c["uren_vooruit"])
-    print(f"{label}: laagste {temp:.1f} °C om {dag(moment)} "
-          f"(komende {c['uren_vooruit']} uur, drempel {c['drempel']:g} °C)")
-
-    if temp <= c["drempel"]:
-        tekst = (f"{label}: het wordt {temp:.1f} °C ({dag(moment)}). "
-                 f"Dat is op of onder je grens van {c['drempel']:g} °C.")
-        stuur_melding("Vorst verwacht", tekst)
-        print("Melding verstuurd.")
-    else:
-        print("Geen vorst onder de drempel; geen melding.")
+    if vorst_nu:
+        vorstcontrole(c, uren, label)
+    for f in fiets_nu:
+        fietsadvies(f, c["fietsgrenzen"], uren, label, geforceerd=geforceerd)
     return 0
 
 

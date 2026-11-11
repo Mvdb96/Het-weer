@@ -43,6 +43,18 @@ Tabblad **Instellingen**:
   4. Plak de sleutel in de app en tik op *Koppeling opslaan*. Met **Testmelding**
      controleer je meteen of de meldingen werken.
 
+### Fietsmeldingen
+
+Bij **Fietsmeldingen** maak je zoveel meldingen als je wilt (bijv. *Werk* en *Sport*).
+Per melding kies je de reisdagen, vertrek heen en terug, de reistijd, hoe laat de melding komt,
+en bij welk advies je een melding wilt: 🚲 fietsen, ☂️ fietsen met regenkleding of 🚗 beter de auto.
+Komt de melding later op de dag dan je vertrek (bijv. 21:00 voor een rit om 07:30), dan gaat het
+advies over de volgende dag.
+
+Bij **Grenzen voor slecht weer** stel je in vanaf hoeveel regen, regenkans, wind, windstoten en
+welke temperatuur (gladheid) het advies "beter de auto" wordt. Onweer, sneeuw en ijzel geven altijd
+dat advies. Het actuele advies staat ook bovenaan het tabblad *48 uur*.
+
 De sleutel blijft alleen op je telefoon. Zonder koppeling kun je `config.json` ook
 gewoon op GitHub bewerken met het potloodje.
 
