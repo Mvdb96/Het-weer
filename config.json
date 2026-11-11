@@ -25,6 +25,26 @@
         "regenkleding",
         "auto"
       ]
+    },
+    {
+      "naam": "Krabben",
+      "aan": true,
+      "tijdstip": "06:00",
+      "dag_ervoor": false,
+      "heen": "07:30",
+      "terug": "",
+      "reistijd_min": 30,
+      "dagen": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        7
+      ],
+      "melden_bij": [
+        "krabben"
+      ]
     }
   ],
   "fietsgrenzen": {
