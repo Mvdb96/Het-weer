@@ -27,8 +27,8 @@
     }
   ],
   "fietsgrenzen": {
-    "max_regen_mm": 1,
-    "max_regen_min": 15,
+    "max_regen_mm": 0,
+    "max_regen_min": 10,
     "max_regenkans": 70,
     "max_wind_kmh": 40,
     "max_windstoten_kmh": 65,
@@ -44,7 +44,7 @@
       "onweer": true,
       "sneeuw": true,
       "ijzel": true,
-      "krabben": true
+      "krabben": false
     }
   },
   "latitude": 52.0633,
