@@ -1,1 +1,34 @@
+name: Het weer – vorstmelding
 
+on:
+  schedule:
+    # Elk uur (tijden in UTC). Het script kijkt zelf of het jouw ingestelde uur is.
+    - cron: "7 * * * *"
+  workflow_dispatch:
+    inputs:
+      actie:
+        description: "Wat wil je doen?"
+        type: choice
+        default: nu
+        options:
+          - nu
+          - test
+
+jobs:
+  controle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Vorst controleren
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python vorstwacht.py --${{ inputs.actie }}
+          else
+            python vorstwacht.py
+          fi
