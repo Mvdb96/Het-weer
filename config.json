@@ -40,7 +40,7 @@
       "regenkans": true,
       "wind": true,
       "windstoten": true,
-      "gladheid": true,
+      "gladheid": false,
       "onweer": true,
       "sneeuw": true,
       "ijzel": true,
