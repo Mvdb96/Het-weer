@@ -10,9 +10,6 @@
       "aan": true,
       "tijdstip": "19:00",
       "dag_ervoor": true,
-      "heen": "07:20",
-      "terug": "17:00",
-      "reistijd_min": 35,
       "dagen": [
         1,
         2,
@@ -20,6 +17,9 @@
         4,
         5
       ],
+      "heen": "07:20",
+      "terug": "17:00",
+      "reistijd_min": 35,
       "melden_bij": [
         "fiets",
         "regenkleding",
@@ -31,9 +31,6 @@
       "aan": true,
       "tijdstip": "06:00",
       "dag_ervoor": false,
-      "heen": "07:30",
-      "terug": "",
-      "reistijd_min": 30,
       "dagen": [
         1,
         2,
@@ -42,6 +39,9 @@
         5,
         7
       ],
+      "heen": "07:30",
+      "terug": "",
+      "reistijd_min": 30,
       "melden_bij": [
         "krabben"
       ]
@@ -51,8 +51,8 @@
     "max_regen_mm": 0.5,
     "max_regen_min": 10,
     "max_regenkans": 70,
-    "max_wind_kmh": 40,
-    "max_windstoten_kmh": 65,
+    "max_windkracht": 6,
+    "max_windstoten_bft": 8,
     "min_temp": 0,
     "krab_temp": 2,
     "gebruik": {
