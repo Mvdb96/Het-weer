@@ -1,9 +1,10 @@
-name: Het weer – vorstmelding
+name: Het weer – meldingen
 
 on:
   schedule:
-    # Elk uur (tijden in UTC). Het script kijkt zelf of het jouw ingestelde uur is.
-    - cron: "7 * * * *"
+    # Elk kwartier (tijden in UTC). Het script verstuurt alleen wat aan de beurt is,
+    # en elke melding maar één keer (bijgehouden in status.json).
+    - cron: "4,19,34,49 * * * *"
   workflow_dispatch:
     inputs:
       actie:
@@ -14,6 +15,14 @@ on:
           - nu
           - test
           - fiets
+          - krab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: meldingen
+  cancel-in-progress: false
 
 jobs:
   controle:
@@ -24,7 +33,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Vorst controleren
+      - name: Meldingen controleren
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
@@ -32,4 +41,16 @@ jobs:
             python vorstwacht.py --${{ inputs.actie }}
           else
             python vorstwacht.py
+          fi
+      - name: Status bewaren
+        run: |
+          if [ -n "$(git status --porcelain status.json)" ]; then
+            git config user.name "het-weer"
+            git config user.email "het-weer@users.noreply.github.com"
+            git add status.json
+            git commit -m "Status bijgewerkt"
+            for i in 1 2 3; do
+              git pull --rebase -X theirs && git push && break
+              sleep 5
+            done
           fi
