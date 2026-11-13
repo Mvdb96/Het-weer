@@ -25,7 +25,30 @@
         "regenkleding",
         "auto"
       ]
-    },
+    }
+  ],
+  "fietsgrenzen": {
+    "max_regen_mm": 0.5,
+    "max_regen_min": 10,
+    "max_regenkans": 70,
+    "max_windkracht": 6,
+    "max_windstoten_bft": 8,
+    "min_temp": 0,
+    "gebruik": {
+      "regen": true,
+      "regenduur": true,
+      "regenkans": true,
+      "wind": true,
+      "windstoten": true,
+      "gladheid": false,
+      "onweer": true,
+      "sneeuw": true,
+      "ijzel": true
+    }
+  },
+  "latitude": 52.0633,
+  "longitude": 5.5778,
+  "krabmeldingen": [
     {
       "naam": "Krabben",
       "aan": true,
@@ -39,35 +62,9 @@
         5,
         7
       ],
-      "heen": "07:30",
-      "terug": "",
-      "reistijd_min": 30,
-      "melden_bij": [
-        "krabben"
-      ]
+      "vertrek": "07:30",
+      "krab_temp": 2,
+      "altijd": false
     }
-  ],
-  "fietsgrenzen": {
-    "max_regen_mm": 0.5,
-    "max_regen_min": 10,
-    "max_regenkans": 70,
-    "max_windkracht": 6,
-    "max_windstoten_bft": 8,
-    "min_temp": 0,
-    "krab_temp": 2,
-    "gebruik": {
-      "regen": true,
-      "regenduur": true,
-      "regenkans": true,
-      "wind": true,
-      "windstoten": true,
-      "gladheid": false,
-      "onweer": true,
-      "sneeuw": true,
-      "ijzel": true,
-      "krabben": false
-    }
-  },
-  "latitude": 52.0633,
-  "longitude": 5.5778
+  ]
 }
