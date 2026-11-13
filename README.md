@@ -57,19 +57,28 @@ buien (mm/uur), hoe lang het regent tijdens je rit (minuten), regenkans, wind, w
 gladheid, onweer, sneeuw en ijzel. De regen wordt per kwartier bekeken, dus een korte lichte bui
 geeft "fietsen, met regenkleding" en langer regenen "beter de auto".
 
-**Auto krabben:** voor je rit heen kijkt de app naar de 8 uur ervoor. Vriest het en is de lucht
-vochtig, of is het koud, helder en vochtig, dan staat er een krabwaarschuwing bij het advies.
-Vink bij een melding *Auto krabben* aan om ook een melding te krijgen als het advies verder
-"fietsen" is. Het actuele advies staat bovenaan het tabblad *48 uur*.
+### Krabmeldingen
+
+Bij **Krabmeldingen** maak je aparte meldingen voor het krabben van de autoruiten: dagen, vertrektijd,
+tijdstip van de melding (op de dag zelf of de dag ervoor), vanaf welke nachttemperatuur en of je
+ook een melding wilt als krabben níet nodig is. De app kijkt naar de 8 uur voor vertrek: vriest
+het en is de lucht vochtig, of is het koud, helder en vochtig, of is er ijzel of sneeuw.
+
+### Verstuurde meldingen
+
+Onder Instellingen zie je de laatst verstuurde meldingen. Die staan in `status.json`, dat de
+workflow zelf bijwerkt. Haal dat bestand niet weg; het zorgt ervoor dat elke melding één keer komt.
 
 De sleutel blijft alleen op je telefoon. Zonder koppeling kun je `config.json` ook
 gewoon op GitHub bewerken met het potloodje.
 
 ## Goed om te weten
 
-- GitHub draait de controle elk uur, maar kijkt alleen op jouw uur naar het weer.
-  Alleen als de laagste temperatuur op of onder je grens ligt, krijg je een melding.
-  GitHub start soms een paar minuten later dan gepland.
+- GitHub draait de controle elk kwartier. Een melding wordt verstuurd zodra het ingestelde
+  tijdstip voorbij is, en uiterlijk 3 uur later. GitHub start geplande taken soms flink later
+  dan gepland; daarom kan een melding een kwartier tot (in drukke tijden) een uur later komen.
+- Wil je zien waarom er wel of geen melding kwam? Kijk op GitHub bij **Actions**, open de run
+  rond het tijdstip en klik op *Meldingen controleren*: daar staat precies wat er besloten is.
 - GitHub zet geplande workflows uit na 60 dagen zonder wijzigingen in de repository.
   Instellingen opslaan via de app telt als wijziging. Gaat hij toch uit, dan krijg je
   een e-mail en zet je hem met één klik weer aan.

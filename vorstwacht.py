@@ -5,10 +5,14 @@ Instellingen staan in config.json. Het ntfy-onderwerp komt uit de
 omgevingsvariabele NTFY_TOPIC (op GitHub: een repository secret).
 
 Gebruik:
-  python vorstwacht.py          # elk uur: doet alleen iets op de ingestelde uren
+  python vorstwacht.py          # elk kwartier: verstuurt wat aan de beurt is
   python vorstwacht.py --nu     # vorstcontrole meteen, ongeacht het tijdstip
   python vorstwacht.py --fiets  # fietsadvies meteen versturen
+  python vorstwacht.py --krab   # krabmeldingen meteen versturen
   python vorstwacht.py --test   # stuur een testmelding
+
+Wat al verstuurd is, staat in status.json. Zo komt elke melding één keer,
+ook als GitHub de geplande run later start dan gepland.
 """
 import json
 import os
@@ -21,6 +25,8 @@ from zoneinfo import ZoneInfo
 
 TZ = ZoneInfo("Europe/Amsterdam")
 CONFIG = Path(__file__).with_name("config.json")
+STATUS = Path(__file__).with_name("status.json")
+VENSTER_UUR = 3   # een melding mag tot zoveel uur na het ingestelde tijdstip nog komen
 NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh").rstrip("/")
 DAGNAMEN = ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"]
 
@@ -35,8 +41,18 @@ MELDING_STANDAARD = {
     "heen": "07:30",
     "terug": "17:00",              # leeg laten ("") als je alleen heen gaat
     "reistijd_min": 30,
-    "melden_bij": NIVEAUS + ["krabben"],  # bij welk advies je een melding wilt;
-                                   # "krabben": ook melden als je waarschijnlijk moet krabben
+    "melden_bij": NIVEAUS,         # bij welk advies je een melding wilt
+}
+
+KRAB_STANDAARD = {
+    "naam": "Auto",
+    "aan": True,
+    "tijdstip": "06:00",           # wanneer de melding komt (hele uren)
+    "dag_ervoor": False,           # True: melding de avond/dag ervoor
+    "dagen": [1, 2, 3, 4, 5],
+    "vertrek": "07:30",            # hoe laat je met de auto weggaat
+    "krab_temp": 2,                # 's nachts deze temperatuur of kouder (bij helder, vochtig weer)
+    "altijd": False,               # True: ook een melding als krabben niet nodig is
 }
 
 GRENZEN_STANDAARD = {
@@ -49,7 +65,7 @@ GRENZEN_STANDAARD = {
     "krab_temp": 2,                # ruiten krabben: 's nachts deze temperatuur of kouder
     # Welke weersfactoren meetellen (false = uitgeschakeld)
     "gebruik": {"regen": True, "regenduur": True, "regenkans": True, "wind": True,
-                "windstoten": True, "gladheid": True, "onweer": True, "sneeuw": True, "ijzel": True, "krabben": True},
+                "windstoten": True, "gladheid": True, "onweer": True, "sneeuw": True, "ijzel": True},
 }
 
 
@@ -82,11 +98,22 @@ def fietsinstellingen(c):
         m["melden_bij"] = ["auto"] if oud.get("melding") == "alleen_auto" else NIVEAUS
         lijst = [m]
     meldingen = []
+    krab_oud = []
     for m in lijst or []:
         x = dict(MELDING_STANDAARD)
         x.update(m)
+        if "krabben" in (x.get("melden_bij") or []):
+            krab_oud.append(x)
+        x["melden_bij"] = [n for n in (x.get("melden_bij") or NIVEAUS) if n in NIVEAUS]
         meldingen.append(x)
-    return meldingen, grenzen
+    krab = c.get("krabmeldingen")
+    if krab is None:
+        # Oude vorm: krabben was een vinkje bij een fietsmelding.
+        krab = [{"naam": m.get("naam") or "Auto", "aan": m.get("aan", True), "tijdstip": m["tijdstip"],
+                 "dag_ervoor": m.get("dag_ervoor", False), "dagen": m["dagen"], "vertrek": m["heen"],
+                 "krab_temp": grenzen.get("krab_temp", 2)} for m in krab_oud]
+    krabmeldingen = [{**KRAB_STANDAARD, **k} for k in krab]
+    return meldingen, grenzen, krabmeldingen
 
 
 def tijd(s, standaard="00:00"):
@@ -100,10 +127,10 @@ def tijd(s, standaard="00:00"):
 def lees_config():
     with open(CONFIG, encoding="utf-8") as f:
         c = json.load(f)
-    meldingen, grenzen = fietsinstellingen(c)
+    meldingen, grenzen, krabmeldingen = fietsinstellingen(c)
     return {
         "locatie": str(c["locatie"]).strip(),
-        "uur": tijd(c.get("tijdstip"), "17:00")[0],
+        "tijdstip": "%02d:%02d" % tijd(c.get("tijdstip"), "17:00"),
         "drempel": float(c.get("drempel_celsius", 0)),
         "uren_vooruit": max(1, min(int(c.get("uren_vooruit", 24)), 72)),
         "aan": bool(c.get("aan", True)),
@@ -111,6 +138,7 @@ def lees_config():
         "lon": c.get("longitude"),
         "fietsmeldingen": meldingen,
         "fietsgrenzen": grenzen,
+        "krabmeldingen": krabmeldingen,
     }
 
 
@@ -271,16 +299,14 @@ def beoordeel(uren, dag, f, g, kwartieren=None):
     return resultaat
 
 
-def krabben(uren, dag, heen, g):
-    """Moet je de autoruiten krabben voor de rit heen? Kijkt naar de 8 uur ervoor."""
-    if not g["gebruik"].get("krabben"):
-        return None
+def krabben(uren, dag, heen, grens):
+    """Moet je de autoruiten krabben voor vertrek? Kijkt naar de 8 uur ervoor."""
     u, m = tijd(heen)
     vertrek = datetime.combine(dag, datetime.min.time()).replace(hour=u, minute=m)
     nacht = [v for t, v in uren.items() if vertrek - timedelta(hours=8) <= t <= vertrek]
     if not nacht:
         return None
-    grens = float(g.get("krab_temp", 2))
+    grens = float(grens)
     laagste = min(v["temperature_2m"] for v in nacht)
     codes = {v["weather_code"] for v in nacht}
     if codes & {56, 57, 66, 67}:
@@ -296,17 +322,18 @@ def krabben(uren, dag, heen, g):
     return None
 
 
-def doeldag(f, nu):
+def doeldag(f, nu, vertrek_veld="heen"):
     """Morgen bij 'dag_ervoor'; anders vandaag als de melding vóór vertrek komt, of morgen."""
     if f.get("dag_ervoor"):
         return nu.date() + timedelta(days=1)
-    hu, hm = tijd(f["heen"])
+    hu, hm = tijd(f[vertrek_veld])
     mu, _ = tijd(f["tijdstip"])
     return nu.date() if mu * 60 <= hu * 60 + hm else nu.date() + timedelta(days=1)
 
 
-def fietsadvies(f, g, uren, label, geforceerd=False, kwartieren=None):
-    nu = datetime.now(TZ)
+def fietsadvies(f, g, uren, label, geforceerd=False, kwartieren=None, nu=None):
+    """nu = het geplande moment van de melding (bepaalt over welke dag het gaat)."""
+    nu = nu or datetime.now(TZ)
     dag = doeldag(f, nu)
     if geforceerd:
         # Handmatig: vandaag zolang de laatste rit nog moet komen, anders morgen.
@@ -334,19 +361,69 @@ def fietsadvies(f, g, uren, label, geforceerd=False, kwartieren=None):
         icoon = {"fiets": "🚲", "regenkleding": "🚲☂️", "auto": "🚗"}[niveau]
         uitleg = ", ".join(redenen) if redenen else "droog, weinig wind"
         regels.append(f"{icoon} {naam.capitalize()} {start}: {uitleg} · {temp} °C")
-    krab = krabben(uren, dag, f["heen"], g)
-    if krab:
-        regels.append(f"🧊 Auto krabben: {krab}")
     tekst = f"{label}\n" + "\n".join(regels)
     print(titel + "\n" + tekst)
-    bij = f.get("melden_bij") or NIVEAUS
-    if not geforceerd and slechtst not in bij and not (krab and "krabben" in bij):
+    if not geforceerd and slechtst not in (f.get("melden_bij") or NIVEAUS):
         print(f"Geen melding: advies '{slechtst}' staat niet aan bij deze melding.")
         return
-    if krab and slechtst not in bij:
-        titel, tags = f"{f.get('naam') or 'Auto'}: ruiten krabben {wanneer}", "ice_cube"
     stuur_melding(titel, tekst, prioriteit="default", tags=tags)
     print("Fietsadvies verstuurd.")
+
+
+def krabmelding(k, uren, label, geforceerd=False, nu=None):
+    nu = nu or datetime.now(TZ)
+    dag = doeldag(k, nu, "vertrek")
+    if geforceerd:
+        dag = nu.date() if (nu.hour, nu.minute) < tijd(k["vertrek"]) else nu.date() + timedelta(days=1)
+    if not geforceerd and dag.isoweekday() not in [int(x) for x in k["dagen"]]:
+        print(f"Krabmelding {k['naam']}: {DAGNAMEN[dag.weekday()]} is geen reisdag.")
+        return
+    wanneer = "vandaag" if dag == nu.date() else "morgen"
+    reden = krabben(uren, dag, k["vertrek"], k["krab_temp"])
+    naam = k.get("naam") or "Auto"
+    if reden:
+        titel, tekst, tags = f"{naam}: ruiten krabben {wanneer}", f"{label}\n🧊 Vertrek {k['vertrek']}: {reden}", "ice_cube"
+    else:
+        titel, tekst, tags = (f"{naam}: niet krabben {wanneer}",
+                              f"{label}\nVertrek {k['vertrek']}: geen bevroren ruiten verwacht", "car")
+    print(titel + "\n" + tekst)
+    if not reden and not k.get("altijd") and not geforceerd:
+        print("Geen melding: krabben is niet nodig.")
+        return
+    stuur_melding(titel, tekst, prioriteit="default", tags=tags)
+    print("Krabmelding verstuurd.")
+
+
+# ---------------- Planning en status ----------------
+
+def lees_status():
+    try:
+        with open(STATUS, encoding="utf-8") as f:
+            st = json.load(f)
+    except (OSError, ValueError):
+        st = {}
+    st.setdefault("afgehandeld", {})
+    st.setdefault("verstuurd", [])
+    return st
+
+
+def schrijf_status(st, nu):
+    grens = (nu - timedelta(days=3)).isoformat()
+    st["afgehandeld"] = {k: v for k, v in st["afgehandeld"].items() if v >= grens}
+    st["verstuurd"] = st["verstuurd"][-20:]
+    with open(STATUS, "w", encoding="utf-8") as f:
+        json.dump(st, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
+def gepland_moment(tijdstip, nu):
+    """Het meest recente geplande moment als dat binnen het venster valt, anders None."""
+    u, m = tijd(tijdstip)
+    for dagen_terug in (0, 1):
+        t = (nu - timedelta(days=dagen_terug)).replace(hour=u, minute=m, second=0, microsecond=0)
+        if t <= nu < t + timedelta(hours=VENSTER_UUR):
+            return t
+    return None
 
 
 # ---------------- Melding ----------------
@@ -365,7 +442,11 @@ def stuur_melding(titel, tekst, prioriteit="high", tags="snowflake"):
     )
     with urllib.request.urlopen(req, timeout=30) as r:
         r.read()
+    VERSTUURD.append({"tijd": datetime.now(TZ).isoformat(timespec="minutes"), "titel": titel, "tekst": tekst})
     return True
+
+
+VERSTUURD = []
 
 
 def main(args):
@@ -377,18 +458,40 @@ def main(args):
         return 0
 
     nu = datetime.now(TZ)
-    vorst_nu = "--nu" in args or (c["aan"] and nu.hour == c["uur"])
-    geforceerd = "--fiets" in args
-    fiets_nu = [f for f in c["fietsmeldingen"]
-                if (geforceerd and f.get("aan")) or (f.get("aan") and nu.hour == tijd(f["tijdstip"])[0])]
-    if geforceerd and not fiets_nu:
-        print("Er staat geen fietsmelding aan.")
-    if "--nu" in args and not c["aan"]:
-        print("Let op: vorstmelding staat uit, maar wordt nu toch gecontroleerd.")
+    handmatig = any(a in args for a in ("--nu", "--fiets", "--krab"))
+    status = lees_status()
+    taken = []   # (sleutel, soort, instelling, gepland moment)
 
-    if not (vorst_nu or fiets_nu):
-        print(f"Het is {nu:%H:%M}; niets te doen op dit uur.")
-        return 0
+    if handmatig:
+        if "--nu" in args:
+            taken.append((None, "vorst", None, nu))
+        if "--fiets" in args:
+            taken += [(None, "fiets", f, nu) for f in c["fietsmeldingen"] if f.get("aan")]
+        if "--krab" in args:
+            taken += [(None, "krab", k, nu) for k in c["krabmeldingen"] if k.get("aan")]
+        if len(taken) == 0:
+            print("Er staat niets aan om te controleren.")
+            return 0
+    else:
+        def plan(soort, naam, inst, tijdstip):
+            moment = gepland_moment(tijdstip, nu)
+            if moment is None:
+                return
+            sleutel = f"{soort}|{naam}|{tijdstip}|{moment.date()}"
+            if sleutel in status["afgehandeld"]:
+                return
+            taken.append((sleutel, soort, inst, moment))
+        if c["aan"]:
+            plan("vorst", "vorst", None, c["tijdstip"])
+        for f in c["fietsmeldingen"]:
+            if f.get("aan"):
+                plan("fiets", f.get("naam", ""), f, f["tijdstip"])
+        for k in c["krabmeldingen"]:
+            if k.get("aan"):
+                plan("krab", k.get("naam", ""), k, k["tijdstip"])
+        if not taken:
+            print(f"Het is {nu:%H:%M}; er is nu niets aan de beurt.")
+            return 0
 
     if c["lat"] is not None and c["lon"] is not None:
         lat, lon, label = float(c["lat"]), float(c["lon"]), c["locatie"]
@@ -396,10 +499,24 @@ def main(args):
         lat, lon, label = zoek_locatie(c["locatie"])
     uren, kwartieren = verwachting(lat, lon)
 
-    if vorst_nu:
-        vorstcontrole(c, uren, label)
-    for f in fiets_nu:
-        fietsadvies(f, c["fietsgrenzen"], uren, label, geforceerd=geforceerd, kwartieren=kwartieren)
+    for sleutel, soort, inst, moment in taken:
+        if sleutel:
+            vertraging = int((nu - moment).total_seconds() // 60)
+            print(f"--- {soort} ({inst.get('naam') if inst else 'vorst'}), gepland {moment:%H:%M}"
+                  + (f", {vertraging} min later gestart" if vertraging > 20 else ""))
+        if soort == "vorst":
+            vorstcontrole(c, uren, label)
+        elif soort == "fiets":
+            fietsadvies(inst, c["fietsgrenzen"], uren, label, geforceerd=handmatig, kwartieren=kwartieren, nu=moment)
+        else:
+            krabmelding(inst, uren, label, geforceerd=handmatig, nu=moment)
+        if sleutel:
+            status["afgehandeld"][sleutel] = nu.isoformat(timespec="minutes")
+
+    if not handmatig or VERSTUURD:
+        status["verstuurd"] += VERSTUURD
+        status["laatste_controle"] = nu.isoformat(timespec="minutes")
+        schrijf_status(status, nu)
     return 0
 
 

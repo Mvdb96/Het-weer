@@ -200,7 +200,6 @@
           <label><input type="checkbox" value="fiets"> 🚲 Fietsen</label>
           <label><input type="checkbox" value="regenkleding"> ☂️ Fietsen met regenkleding</label>
           <label><input type="checkbox" value="auto"> 🚗 Beter de auto</label>
-          <label><input type="checkbox" value="krabben"> 🧊 Auto krabben (ook als het advies fietsen is)</label>
         </div>
         <div class="row">
           <button class="btn full" id="fSaveBtn">Opslaan</button>
@@ -211,6 +210,46 @@
 
       <button class="btn full sec2" id="fTestBtn">Test fietsmeldingen nu</button>
       <div class="msg" id="fMsg"></div>
+    </div></div>
+
+    <div class="card"><div class="sec">
+      <h2>Krabmeldingen</h2>
+      <p class="note">Een melding als je waarschijnlijk de autoruiten moet krabben. De app kijkt naar de 8 uur voor je vertrek: hoe koud het wordt, of het helder is en hoe vochtig de lucht is.</p>
+      <div id="kList" class="flist"></div>
+      <button class="btn full sec2" id="kAdd">+ Krabmelding toevoegen</button>
+
+      <div id="kEdit" class="fedit hidden">
+        <label for="kNaam">Naam</label>
+        <input id="kNaam" placeholder="bijv. Auto" autocomplete="off">
+        <label class="switch"><input type="checkbox" id="kAan"> Deze melding staat aan</label>
+        <label>Dagen</label>
+        <div class="dagen" id="kDagen"></div>
+        <div class="row">
+          <div><label for="kVertrek">Vertrek met de auto</label><input id="kVertrek" type="time"></div>
+          <div><label for="kTijd">Melding om</label><select id="kTijd"></select></div>
+        </div>
+        <label for="kWanneer">Melding krijgen</label>
+        <select id="kWanneer">
+          <option value="0">Op de dag zelf</option>
+          <option value="1">De dag ervoor</option>
+        </select>
+        <label for="kTemp">Krabben als het 's nachts zo koud wordt of kouder (°C)</label>
+        <input id="kTemp" type="text" inputmode="decimal">
+        <p class="note" style="margin:6px 0 0">Bij helder en vochtig weer kan de ruit al bevriezen als de lucht net boven nul blijft. Vriest het, of is er ijzel of sneeuw, dan krijg je altijd een waarschuwing.</p>
+        <label for="kAltijd">Melding sturen</label>
+        <select id="kAltijd">
+          <option value="0">Alleen als ik moet krabben</option>
+          <option value="1">Altijd (ook "niet krabben")</option>
+        </select>
+        <div class="row">
+          <button class="btn full" id="kSaveBtn">Opslaan</button>
+          <button class="btn full sec2" id="kCancel">Annuleren</button>
+        </div>
+        <button class="btn full danger" id="kDel">Verwijderen</button>
+      </div>
+
+      <button class="btn full sec2" id="kTestBtn">Test krabmeldingen nu</button>
+      <div class="msg" id="kMsg"></div>
     </div></div>
 
     <div class="card"><div class="sec">
@@ -226,9 +265,8 @@
         <div class="grow"><label class="gsw"><input type="checkbox" data-g="onweer"> Onweer</label></div>
         <div class="grow"><label class="gsw"><input type="checkbox" data-g="sneeuw"> Sneeuw</label></div>
         <div class="grow"><label class="gsw"><input type="checkbox" data-g="ijzel"> IJzel</label></div>
-        <div class="grow"><label class="gsw"><input type="checkbox" data-g="krabben"> 🧊 Auto krabben: 's nachts bij of onder</label><span class="gin"><input id="fKrab" type="text" inputmode="decimal"> °C</span></div>
       </div>
-      <p class="note" style="margin-top:10px">De regen wordt per kwartier bekeken: een korte, lichte bui tijdens je rit geeft "fietsen, met regenkleding". Voor krabben kijkt de app naar de 8 uur voor je vertrek heen. Telt mee: hoe koud het wordt, of het helder is en hoe vochtig de lucht is.</p>
+      <p class="note" style="margin-top:10px">De regen wordt per kwartier bekeken: een korte, lichte bui tijdens je rit geeft "fietsen, met regenkleding".</p>
       <button class="btn full" id="gSaveBtn">Opslaan</button>
       <div class="msg" id="gMsg"></div>
     </div></div>
@@ -257,6 +295,12 @@
       </div>
       <div class="msg" id="ghMsg"></div>
     </div></div>
+
+    <div class="card"><div class="sec">
+      <h2>Verstuurde meldingen</h2>
+      <p class="note" id="stInfo">Laden…</p>
+      <div id="stList" class="flist"></div>
+    </div></div>
   </section>
 
   <p class="src">Weerdata: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · <span id="updated"></span></p>
@@ -269,11 +313,12 @@ const store = {
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
 const NIVEAUS = ["fiets","regenkleding","auto"];
-const MELDING = { naam:"Werk", aan:true, tijdstip:"06:00", dag_ervoor:false, dagen:[1,2,3,4,5], heen:"07:30", terug:"17:00", reistijd_min:30, melden_bij:[...NIVEAUS, "krabben"] };
+const MELDING = { naam:"Werk", aan:true, tijdstip:"06:00", dag_ervoor:false, dagen:[1,2,3,4,5], heen:"07:30", terug:"17:00", reistijd_min:30, melden_bij:NIVEAUS };
+const KRAB = { naam:"Auto", aan:true, tijdstip:"06:00", dag_ervoor:false, dagen:[1,2,3,4,5], vertrek:"07:30", krab_temp:2, altijd:false };
 const BFT_GRENZEN = [1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118]; // km/u, bovengrens per windkracht
 function bft(kmh){ const i = BFT_GRENZEN.findIndex(g => Number(kmh) < g); return i < 0 ? 12 : i; }
-const GEBRUIK = { regen:true, regenduur:true, regenkans:true, wind:true, windstoten:true, gladheid:true, onweer:true, sneeuw:true, ijzel:true, krabben:true };
-const GRENZEN = { max_regen_mm:1.0, max_regen_min:15, max_regenkans:70, max_windkracht:6, max_windstoten_bft:8, min_temp:0, krab_temp:2, gebruik:GEBRUIK };
+const GEBRUIK = { regen:true, regenduur:true, regenkans:true, wind:true, windstoten:true, gladheid:true, onweer:true, sneeuw:true, ijzel:true };
+const GRENZEN = { max_regen_mm:1.0, max_regen_min:15, max_regenkans:70, max_windkracht:6, max_windstoten_bft:8, min_temp:0, gebruik:GEBRUIK };
 function normaliseer(c){
   const oud = c.fietsadvies || null;
   const eigen = Object.assign({}, c.fietsgrenzen || {});
@@ -287,6 +332,14 @@ function normaliseer(c){
   }
   c.fietsgrenzen.gebruik = Object.assign({}, GEBRUIK, c.fietsgrenzen.gebruik || {});
   c.fietsmeldingen = c.fietsmeldingen.map(m => Object.assign({}, MELDING, m));
+  if (!Array.isArray(c.krabmeldingen)) {
+    // Oude vorm: krabben was een vinkje bij een fietsmelding.
+    c.krabmeldingen = c.fietsmeldingen.filter(m => (m.melden_bij || []).includes("krabben")).map(m => Object.assign({}, KRAB,
+      {naam: m.naam || "Auto", aan: m.aan, tijdstip: m.tijdstip, dag_ervoor: !!m.dag_ervoor, dagen: m.dagen, vertrek: m.heen, krab_temp: c.fietsgrenzen.krab_temp ?? 2}));
+  }
+  c.krabmeldingen = c.krabmeldingen.map(k => Object.assign({}, KRAB, k));
+  c.fietsmeldingen.forEach(m => m.melden_bij = (m.melden_bij || NIVEAUS).filter(n => NIVEAUS.includes(n)));
+  delete c.fietsgrenzen.krab_temp; delete c.fietsgrenzen.gebruik.krabben;
   delete c.fietsadvies;
   return c;
 }
@@ -461,14 +514,13 @@ function beoordeel(data, dag, f, g){
   }
   return uit;
 }
-function krabben(data, dag, heen, g){
-  if (!g.gebruik.krabben) return null;
+function krabben(data, dag, heen, grensTemp){
   const H = data.hourly;
   const vertrek = new Date(dag); vertrek.setHours(0, hm(heen), 0, 0);
   const van = new Date(vertrek.getTime() - 8*3600000);
   const ids = H.time.map((t,i) => [parse(t), i]).filter(([t]) => t >= van && t <= vertrek).map(([,i]) => i);
   if (!ids.length) return null;
-  const grens = Number(g.krab_temp), laagste = Math.round(Math.min(...ids.map(i => H.temperature_2m[i])));
+  const grens = Number(grensTemp), laagste = Math.round(Math.min(...ids.map(i => H.temperature_2m[i])));
   const codes = new Set(ids.map(i => H.weather_code[i]));
   if ([56,57,66,67].some(c => codes.has(c))) return `ijzel vannacht, ruiten waarschijnlijk bevroren (${laagste} °C)`;
   if ([71,73,75,77,85,86].some(c => codes.has(c)) && laagste <= 1) return `sneeuw vannacht: sneeuw vegen en krabben (${laagste} °C)`;
@@ -479,7 +531,7 @@ function krabben(data, dag, heen, g){
 }
 function volgendeReisdag(f){
   const nu = new Date();
-  const laatste = Math.max(...[f.heen, f.terug].filter(Boolean).map(hm));
+  const laatste = Math.max(...[f.heen, f.terug, f.vertrek].filter(Boolean).map(hm));
   for (let d = 0; d < 7; d++){
     const dag = new Date(); dag.setHours(0,0,0,0); dag.setDate(dag.getDate()+d);
     const wd = dag.getDay() === 0 ? 7 : dag.getDay();
@@ -495,7 +547,7 @@ function adviesVoor(data, f){
   if (!ritten.length) return null;
   const rang = {fiets:0, regenkleding:1, auto:2};
   const slechtst = ritten.reduce((a, r) => rang[r.niveau] > rang[a] ? r.niveau : a, "fiets");
-  return {dag, ritten, slechtst, krab: krabben(data, dag, f.heen, cfg.fietsgrenzen)};
+  return {dag, ritten, slechtst};
 }
 function renderFiets(data){
   const box = $("fietsBanner");
@@ -505,7 +557,14 @@ function renderFiets(data){
     const kop = {fiets:["🚲",`Fietsweer ${wanneer}`], regenkleding:["☂️",`Fietsen ${wanneer}, met regenkleding`], auto:["🚗",`Beter de auto ${wanneer}`]}[a.slechtst];
     const icoon = {fiets:"🚲", regenkleding:"☂️", auto:"🚗"};
     return `<div class="banner${a.slechtst === "auto" ? " auto" : ""}"><span class="em">${kop[0]}</span><div><b>${esc(f.naam || "Fietsen")}: ${kop[1].toLowerCase()}</b><ul class="ritten">${a.ritten.map(r =>
-      `<li>${icoon[r.niveau]} ${r.naam} ${r.start}: ${r.redenen.length ? r.redenen.join(", ") : "droog, weinig wind"} · ${r.temp} °C</li>`).join("")}${a.krab ? `<li>🧊 Auto krabben: ${a.krab}</li>` : ""}</ul></div></div>`;
+      `<li>${icoon[r.niveau]} ${r.naam} ${r.start}: ${r.redenen.length ? r.redenen.join(", ") : "droog, weinig wind"} · ${r.temp} °C</li>`).join("")}</ul></div></div>`;
+  }).join("") + cfg.krabmeldingen.filter(k => k.aan && k.vertrek).map(k => {
+    const dag = volgendeReisdag(k); if (!dag) return "";
+    const reden = krabben(data, dag, k.vertrek, k.krab_temp);
+    const wanneer = dagNaam(dag).toLowerCase();
+    return reden
+      ? `<div class="banner frost"><span class="em">🧊</span><div><b>${esc(k.naam || "Auto")}: ruiten krabben ${wanneer}</b><small>Vertrek ${k.vertrek}: ${reden}</small></div></div>`
+      : `<div class="banner"><span class="em">🚗</span><div><b>${esc(k.naam || "Auto")}: niet krabben ${wanneer}</b><small>Vertrek ${k.vertrek}: geen bevroren ruiten verwacht</small></div></div>`;
   }).join("");
   box.innerHTML = html;
   box.classList.toggle("hidden", !html);
@@ -532,9 +591,8 @@ function vulFormulier(){
   const g = cfg.fietsgrenzen;
   $("fRegen").value = String(g.max_regen_mm).replace(".",","); $("fDuur").value = g.max_regen_min; $("fKans").value = g.max_regenkans;
   $("fWind").value = g.max_windkracht; $("fStoot").value = g.max_windstoten_bft; $("fTemp").value = String(g.min_temp).replace(".",",");
-  $("fKrab").value = String(g.krab_temp).replace(".",",");
   $("gList").querySelectorAll("[data-g]").forEach(c => { c.checked = g.gebruik[c.dataset.g] !== false; zetRij(c); });
-  renderLijst();
+  renderLijst(); renderKrab();
 }
 function msg(id, t, cls){ const m = $(id); m.textContent = t; m.className = "msg "+(cls||""); }
 
@@ -592,7 +650,7 @@ function renderLijst(){
   l.innerHTML = cfg.fietsmeldingen.map((m, i) => `<button class="fitem${m.aan ? "" : " off"}" data-i="${i}">
     <div><b>${esc(m.naam || "Melding")}${m.aan ? "" : " (uit)"}</b>
     <small>${dagenTekst(m.dagen)} · heen ${m.heen}${m.terug ? ", terug " + m.terug : ""} · melding om ${m.tijdstip}${m.dag_ervoor ? " de dag ervoor" : ""}</small>
-    <small>Melden bij: ${m.melden_bij.length ? m.melden_bij.map(n => ({fiets:"🚲 fietsen", regenkleding:"☂️ regenkleding", auto:"🚗 auto", krabben:"🧊 krabben"})[n]).join(", ") : "niets"}</small></div>
+    <small>Melden bij: ${m.melden_bij.length ? m.melden_bij.map(n => ({fiets:"🚲 fietsen", regenkleding:"☂️ regenkleding", auto:"🚗 auto", })[n]).join(", ") : "niets"}</small></div>
     <span class="pijl">›</span></button>`).join("");
   l.querySelectorAll(".fitem").forEach(b => b.onclick = () => bewerk(Number(b.dataset.i)));
 }
@@ -610,6 +668,56 @@ function bewerk(i){
 }
 function sluitEditor(){ bewerkIndex = null; $("fEdit").classList.add("hidden"); $("fAdd").classList.remove("hidden"); }
 $("fAdd").onclick = () => bewerk(null);
+
+// Krabmeldingen
+["ma","di","wo","do","vr","za","zo"].forEach((d,i) => { const l = document.createElement("label"); l.innerHTML = `<input type="checkbox" value="${i+1}">${d}`; $("kDagen").appendChild(l); });
+for (let h = 0; h < 24; h++){ const o = document.createElement("option"); o.value = String(h).padStart(2,"0")+":00"; o.textContent = o.value; $("kTijd").appendChild(o); }
+function renderKrab(){
+  const l = $("kList");
+  if (!cfg.krabmeldingen.length) { l.innerHTML = '<p class="note" style="margin:0">Nog geen krabmeldingen.</p>'; return; }
+  l.innerHTML = cfg.krabmeldingen.map((k, i) => `<button class="fitem${k.aan ? "" : " off"}" data-i="${i}">
+    <div><b>🧊 ${esc(k.naam || "Auto")}${k.aan ? "" : " (uit)"}</b>
+    <small>${dagenTekst(k.dagen)} · vertrek ${k.vertrek} · melding om ${k.tijdstip}${k.dag_ervoor ? " de dag ervoor" : ""}</small>
+    <small>Krabben bij ${String(k.krab_temp).replace(".",",")} °C of kouder · ${k.altijd ? "altijd een melding" : "alleen als het nodig is"}</small></div>
+    <span class="pijl">›</span></button>`).join("");
+  l.querySelectorAll(".fitem").forEach(b => b.onclick = () => bewerkKrab(Number(b.dataset.i)));
+}
+let krabIndex = null;
+function bewerkKrab(i){
+  krabIndex = i;
+  const k = i == null ? Object.assign({}, KRAB) : cfg.krabmeldingen[i];
+  $("kNaam").value = k.naam || ""; $("kAan").checked = !!k.aan; $("kVertrek").value = k.vertrek || "";
+  $("kTijd").value = String(parseInt(k.tijdstip)||6).padStart(2,"0")+":00"; $("kWanneer").value = k.dag_ervoor ? "1" : "0";
+  $("kTemp").value = String(k.krab_temp).replace(".",","); $("kAltijd").value = k.altijd ? "1" : "0";
+  $("kDagen").querySelectorAll("input").forEach(c => c.checked = k.dagen.map(Number).includes(Number(c.value)));
+  $("kDel").classList.toggle("hidden", i == null); $("kDel").textContent = "Verwijderen"; $("kDel").dataset.zeker = "";
+  $("kEdit").classList.remove("hidden"); $("kAdd").classList.add("hidden"); msg("kMsg","");
+  $("kEdit").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function sluitKrab(){ krabIndex = null; $("kEdit").classList.add("hidden"); $("kAdd").classList.remove("hidden"); }
+$("kAdd").onclick = () => bewerkKrab(null);
+$("kCancel").onclick = sluitKrab;
+$("kSaveBtn").onclick = async () => {
+  const k = {
+    naam: $("kNaam").value.trim() || "Auto", aan: $("kAan").checked, tijdstip: $("kTijd").value, vertrek: $("kVertrek").value,
+    dag_ervoor: $("kWanneer").value === "1", altijd: $("kAltijd").value === "1",
+    krab_temp: parseFloat(String($("kTemp").value).replace(",", ".")),
+    dagen: [...$("kDagen").querySelectorAll("input:checked")].map(c => Number(c.value))
+  };
+  if (!k.vertrek) { msg("kMsg","Vul in hoe laat je vertrekt.","err"); return; }
+  if (!k.dagen.length) { msg("kMsg","Kies minstens één dag.","err"); return; }
+  if (isNaN(k.krab_temp)) { msg("kMsg","Vul een geldige temperatuur in.","err"); return; }
+  if (krabIndex == null) cfg.krabmeldingen.push(k); else cfg.krabmeldingen[krabIndex] = k;
+  store.set("vw_cfg", cfg); sluitKrab(); renderKrab(); vernieuwAdvies();
+  await naarGitHub("kMsg");
+};
+$("kDel").onclick = async () => {
+  if (krabIndex == null) return;
+  if (!$("kDel").dataset.zeker) { $("kDel").dataset.zeker = "1"; $("kDel").textContent = "Weet je het zeker? Tik nogmaals om te verwijderen"; return; }
+  cfg.krabmeldingen.splice(krabIndex, 1);
+  store.set("vw_cfg", cfg); sluitKrab(); renderKrab(); vernieuwAdvies();
+  await naarGitHub("kMsg");
+};
 $("fCancel").onclick = sluitEditor;
 function vernieuwAdvies(){ const last = store.get("vw_last", null); if (last) renderFiets(last.data); }
 $("fSaveBtn").onclick = async () => {
@@ -638,7 +746,7 @@ function zetRij(c){ const rij = c.closest(".grow"); rij.classList.toggle("off", 
 $("gList").querySelectorAll("[data-g]").forEach(c => c.addEventListener("change", () => zetRij(c)));
 $("gSaveBtn").onclick = async () => {
   const g = { max_regen_mm: getal("fRegen"), max_regen_min: getal("fDuur"), max_regenkans: getal("fKans"), max_windkracht: getal("fWind"),
-    max_windstoten_bft: getal("fStoot"), min_temp: getal("fTemp"), krab_temp: getal("fKrab") };
+    max_windstoten_bft: getal("fStoot"), min_temp: getal("fTemp") };
   if (Object.values(g).some(isNaN)) { msg("gMsg","Vul overal een getal in.","err"); return; }
   g.gebruik = Object.fromEntries([...$("gList").querySelectorAll("[data-g]")].map(c => [c.dataset.g, c.checked]));
   cfg.fietsgrenzen = g; store.set("vw_cfg", cfg); vernieuwAdvies();
@@ -677,7 +785,7 @@ async function naarGitHub(msgId, stil){
     const oud = JSON.parse(b64dec(f.content));
     const nieuw = Object.assign({}, oud, {
       locatie: cfg.locatie || oud.locatie, tijdstip: cfg.tijdstip, drempel_celsius: cfg.drempel_celsius,
-      uren_vooruit: cfg.uren_vooruit, aan: cfg.aan, fietsmeldingen: cfg.fietsmeldingen, fietsgrenzen: cfg.fietsgrenzen
+      uren_vooruit: cfg.uren_vooruit, aan: cfg.aan, fietsmeldingen: cfg.fietsmeldingen, fietsgrenzen: cfg.fietsgrenzen, krabmeldingen: cfg.krabmeldingen
     });
     delete nieuw.fietsadvies;
     if (cfg.latitude != null){ nieuw.latitude = cfg.latitude; nieuw.longitude = cfg.longitude; }
@@ -708,9 +816,10 @@ $("ghSaveBtn").onclick = async () => {
 
 $("testBtn").onclick = () => start("test", "ghMsg");
 $("fTestBtn").onclick = () => start("fiets", "fMsg");
+$("kTestBtn").onclick = () => start("krab", "kMsg");
 async function start(actie, mid){
   if (!gh?.token) { msg(mid,"Sla eerst de koppeling met GitHub op (onderaan).","err"); return; }
-  msg(mid, actie === "fiets" ? "Fietsadvies aanvragen…" : "Testmelding aanvragen…");
+  msg(mid, {fiets:"Fietsadvies aanvragen…", krab:"Krabmelding aanvragen…"}[actie] || "Testmelding aanvragen…");
   let stap = "repository";
   try {
     const repo = await api("");
@@ -731,9 +840,32 @@ async function start(actie, mid){
     let m = e.message;
     if (stap === "repository" && /niet gevonden/.test(m)) m = `repository ${gh.owner}/${gh.repo} niet gevonden. Controleer gebruikersnaam en repositorynaam (hoofdletters tellen niet, streepjes wel)`;
     else if (stap !== "repository" && /niet gevonden|rechten/.test(m)) m = "de sleutel mag niet bij Actions. Geef de sleutel bij Permissions ook 'Actions: Read and write' (op GitHub: token bewerken), of maak een nieuwe";
-    msg(mid,(actie === "fiets" ? "Fietsadvies" : "Testmelding")+" lukte niet: "+m+".","err");
+    msg(mid,({fiets:"Fietsadvies", krab:"Krabmelding"}[actie] || "Testmelding")+" lukte niet: "+m+".","err");
   }
 }
+
+// ---------- Verstuurde meldingen ----------
+async function laadStatus(){
+  let st = null;
+  try {
+    if (gh?.token) { const f = await api("/contents/status.json"); st = JSON.parse(b64dec(f.content)); }
+    else { const r = await fetch("status.json?t=" + Date.now(), {cache:"no-store"}); if (r.ok) st = await r.json(); }
+  } catch(e) {}
+  if (!st || !st.laatste_controle) {
+    $("stInfo").textContent = "Nog geen controle gezien. De eerste verschijnt hier nadat GitHub het geplande tijdstip van een melding heeft gecontroleerd.";
+    $("stList").innerHTML = ""; return;
+  }
+  const laatst = new Date(st.laatste_controle);
+  const uurGeleden = (Date.now() - laatst) / 3600000;
+  const wanneer = d => d.toLocaleString("nl-NL",{weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+  $("stInfo").innerHTML = `Laatste controle met iets te doen: ${wanneer(laatst)}.` +
+    (uurGeleden > 26 ? ` <b style="color:var(--warn)">Dat is lang geleden: kijk op GitHub bij Actions of de workflow aan staat.</b>` : "");
+  const lijst = (st.verstuurd || []).slice(-6).reverse();
+  $("stList").innerHTML = lijst.length ? lijst.map(m => `<div class="fitem" style="cursor:default"><div><b>${esc(m.titel || "")}</b>
+    <small>${m.tijd ? wanneer(new Date(m.tijd)) : ""}</small>${m.tekst ? `<small>${esc(m.tekst).replace(/\n/g,"<br>")}</small>` : ""}</div></div>`).join("")
+    : '<p class="note" style="margin:0">Nog geen meldingen verstuurd.</p>';
+}
+document.querySelector('nav button[data-tab="inst"]').addEventListener("click", laadStatus);
 
 // ---------- Installeren ----------
 let installEvent = null;
