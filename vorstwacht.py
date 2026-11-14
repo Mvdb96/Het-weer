@@ -17,6 +17,9 @@ ook als GitHub de geplande run later start dan gepland.
 import json
 import os
 import sys
+import time
+import traceback
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, date
@@ -142,10 +145,31 @@ def lees_config():
     }
 
 
+class TijdelijkeFout(Exception):
+    """Netwerk of dienst even niet bereikbaar; het volgende kwartier opnieuw proberen."""
+
+
+def open_url(req, pogingen=3):
+    """urlopen met herhalen bij tijdelijke problemen (geen verbinding, time-out, 429, 5xx)."""
+    for poging in range(1, pogingen + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code != 429 and e.code < 500:
+                raise
+            fout = f"HTTP {e.code} van {req.host}"
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            fout = f"{req.host} niet bereikbaar ({getattr(e, 'reason', e)})"
+        print(f"Poging {poging}/{pogingen} mislukt: {fout}")
+        if poging < pogingen:
+            time.sleep(5 * poging)
+    raise TijdelijkeFout(fout)
+
+
 def haal_json(url):
     req = urllib.request.Request(url, headers={"User-Agent": "het-weer"})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.load(r)
+    return json.loads(open_url(req))
 
 
 def zoek_locatie(naam):
@@ -266,7 +290,7 @@ def beoordeel(uren, dag, f, g, kwartieren=None):
         kans = max(d["precipitation_probability"] or 0 for d in data)
         wind = max(d["wind_speed_10m"] or 0 for d in data)
         stoot = max(d["wind_gusts_10m"] or 0 for d in data)
-        temp = min(d["temperature_2m"] for d in data)
+        temp = min((d["temperature_2m"] for d in data if d["temperature_2m"] is not None), default=99)
         codes = {d["weather_code"] for d in data}
         if aan["onweer"] and codes & {95, 96, 99}:
             hard.append("onweer")
@@ -303,7 +327,8 @@ def krabben(uren, dag, heen, grens):
     """Moet je de autoruiten krabben voor vertrek? Kijkt naar de 8 uur ervoor."""
     u, m = tijd(heen)
     vertrek = datetime.combine(dag, datetime.min.time()).replace(hour=u, minute=m)
-    nacht = [v for t, v in uren.items() if vertrek - timedelta(hours=8) <= t <= vertrek]
+    nacht = [v for t, v in uren.items()
+             if vertrek - timedelta(hours=8) <= t <= vertrek and v["temperature_2m"] is not None]
     if not nacht:
         return None
     grens = float(grens)
@@ -440,8 +465,7 @@ def stuur_melding(titel, tekst, prioriteit="high", tags="snowflake"):
         # Emoji in de titel komen via Tags; de titel zelf blijft gewone tekst.
         headers={"Title": titel, "Priority": prioriteit, "Tags": tags},
     )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        r.read()
+    open_url(req)
     VERSTUURD.append({"tijd": datetime.now(TZ).isoformat(timespec="minutes"), "titel": titel, "tekst": tekst})
     return True
 
@@ -450,14 +474,19 @@ VERSTUURD = []
 
 
 def main(args):
-    c = lees_config()
+    nu = datetime.now(TZ)
+    try:
+        c = lees_config()
+    except Exception as e:
+        traceback.print_exc()
+        meld_fout(f"config.json kan niet gelezen worden: {e}", nu)
+        return 1
 
     if "--test" in args:
         stuur_melding("Het weer: test", f"Testmelding voor {c['locatie']}. Het werkt!", "default", "white_check_mark")
         print("Testmelding verstuurd.")
         return 0
 
-    nu = datetime.now(TZ)
     handmatig = any(a in args for a in ("--nu", "--fiets", "--krab"))
     status = lees_status()
     taken = []   # (sleutel, soort, instelling, gepland moment)
@@ -493,31 +522,65 @@ def main(args):
             print(f"Het is {nu:%H:%M}; er is nu niets aan de beurt.")
             return 0
 
-    if c["lat"] is not None and c["lon"] is not None:
-        lat, lon, label = float(c["lat"]), float(c["lon"]), c["locatie"]
-    else:
-        lat, lon, label = zoek_locatie(c["locatie"])
-    uren, kwartieren = verwachting(lat, lon)
+    try:
+        if c["lat"] is not None and c["lon"] is not None:
+            lat, lon, label = float(c["lat"]), float(c["lon"]), c["locatie"]
+        else:
+            lat, lon, label = zoek_locatie(c["locatie"])
+        uren, kwartieren = verwachting(lat, lon)
+    except TijdelijkeFout as e:
+        print(f"Weerbericht nu niet op te halen ({e}). Het volgende kwartier wordt het opnieuw geprobeerd.")
+        return 0
+    except Exception as e:
+        traceback.print_exc()
+        meld_fout(f"weerbericht ophalen mislukt: {e}", nu, status)
+        return 1
 
+    fouten = []
     for sleutel, soort, inst, moment in taken:
         if sleutel:
             vertraging = int((nu - moment).total_seconds() // 60)
             print(f"--- {soort} ({inst.get('naam') if inst else 'vorst'}), gepland {moment:%H:%M}"
                   + (f", {vertraging} min later gestart" if vertraging > 20 else ""))
-        if soort == "vorst":
-            vorstcontrole(c, uren, label)
-        elif soort == "fiets":
-            fietsadvies(inst, c["fietsgrenzen"], uren, label, geforceerd=handmatig, kwartieren=kwartieren, nu=moment)
-        else:
-            krabmelding(inst, uren, label, geforceerd=handmatig, nu=moment)
+        naam = f"{soort}melding '{inst.get('naam')}'" if inst else "vorstmelding"
+        try:
+            if soort == "vorst":
+                vorstcontrole(c, uren, label)
+            elif soort == "fiets":
+                fietsadvies(inst, c["fietsgrenzen"], uren, label, geforceerd=handmatig, kwartieren=kwartieren, nu=moment)
+            else:
+                krabmelding(inst, uren, label, geforceerd=handmatig, nu=moment)
+        except TijdelijkeFout as e:
+            # Niet als afgehandeld markeren: het volgende kwartier opnieuw.
+            print(f"{naam}: versturen lukte nu niet ({e}); volgende kwartier opnieuw.")
+            continue
+        except Exception as e:
+            traceback.print_exc()
+            fouten.append(f"{naam}: {e}")
         if sleutel:
             status["afgehandeld"][sleutel] = nu.isoformat(timespec="minutes")
 
-    if not handmatig or VERSTUURD:
+    if not handmatig or VERSTUURD or fouten:
         status["verstuurd"] += VERSTUURD
         status["laatste_controle"] = nu.isoformat(timespec="minutes")
+        if fouten:
+            status["fout"] = {"tijd": nu.isoformat(timespec="minutes"), "tekst": "; ".join(fouten)}
+        else:
+            status.pop("fout", None)
         schrijf_status(status, nu)
+    if fouten:
+        print("FOUT: " + "; ".join(fouten))
+        return 1
     return 0
+
+
+def meld_fout(tekst, nu, status=None):
+    """Zet een fout in status.json, zodat de app hem kan tonen."""
+    print("FOUT: " + tekst)
+    status = status or lees_status()
+    if (status.get("fout") or {}).get("tekst") != tekst:
+        status["fout"] = {"tijd": nu.isoformat(timespec="minutes"), "tekst": tekst}
+        schrijf_status(status, nu)
 
 
 if __name__ == "__main__":

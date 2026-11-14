@@ -860,6 +860,7 @@ async function laadStatus(){
   const wanneer = d => d.toLocaleString("nl-NL",{weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
   $("stInfo").innerHTML = `Laatste controle met iets te doen: ${wanneer(laatst)}.` +
     (uurGeleden > 26 ? ` <b style="color:var(--warn)">Dat is lang geleden: kijk op GitHub bij Actions of de workflow aan staat.</b>` : "");
+  if (st.fout) $("stInfo").innerHTML += `<br><b style="color:var(--warn)">Fout bij de controle van ${wanneer(new Date(st.fout.tijd))}:</b> ${esc(st.fout.tekst)}`;
   const lijst = (st.verstuurd || []).slice(-6).reverse();
   $("stList").innerHTML = lijst.length ? lijst.map(m => `<div class="fitem" style="cursor:default"><div><b>${esc(m.titel || "")}</b>
     <small>${m.tijd ? wanneer(new Date(m.tijd)) : ""}</small>${m.tekst ? `<small>${esc(m.tekst).replace(/\n/g,"<br>")}</small>` : ""}</div></div>`).join("")
