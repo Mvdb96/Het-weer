@@ -1,7 +1,8 @@
 {
   "afgehandeld": {
     "vorst|vorst|19:00|2026-11-13": "2026-11-13T19:17+01:00",
-    "fiets|Werk|19:00|2026-11-13": "2026-11-13T19:17+01:00"
+    "fiets|Werk|19:00|2026-11-13": "2026-11-13T19:17+01:00",
+    "krab|Krabben|06:00|2026-11-14": "2026-11-14T07:18+01:00"
   },
   "verstuurd": [
     {
@@ -10,5 +11,5 @@
       "tekst": "Ederveen, Gelderland: het wordt 0.4 °C (za 08:00). Dat is op of onder je grens van 1 °C."
     }
   ],
-  "laatste_controle": "2026-11-13T19:17+01:00"
+  "laatste_controle": "2026-11-14T07:18+01:00"
 }
