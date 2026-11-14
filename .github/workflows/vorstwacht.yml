@@ -29,8 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Meldingen controleren
@@ -43,6 +43,7 @@ jobs:
             python vorstwacht.py
           fi
       - name: Status bewaren
+        if: always()
         run: |
           if [ -n "$(git status --porcelain status.json)" ]; then
             git config user.name "het-weer"
