@@ -7,7 +7,8 @@
     "fiets|Werk|19:00|2026-11-14": "2026-11-14T19:20+01:00",
     "krab|Krabben|06:00|2026-11-15": "2026-11-15T07:20+01:00",
     "vorst|vorst|19:00|2026-11-15": "2026-11-15T19:05+01:00",
-    "fiets|Werk|19:00|2026-11-15": "2026-11-15T19:05+01:00"
+    "fiets|Werk|19:00|2026-11-15": "2026-11-15T19:05+01:00",
+    "krab|Krabben|06:00|2026-11-16": "2026-11-16T06:11+01:00"
   },
   "verstuurd": [
     {
@@ -26,5 +27,5 @@
       "tekst": "Ederveen, Gelderland\n🚗 Heen 07:20: buien tot 0,8 mm/uur, ca. 35 min regen tijdens je rit · 8 °C\n🚲☂️ Terug 17:00: kans op een bui (43%) · 7 °C"
     }
   ],
-  "laatste_controle": "2026-11-15T19:05+01:00"
+  "laatste_controle": "2026-11-16T06:11+01:00"
 }
