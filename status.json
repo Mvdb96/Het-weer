@@ -1,14 +1,14 @@
 {
   "afgehandeld": {
-    "vorst|vorst|19:00|2026-11-13": "2026-11-13T19:17+01:00",
-    "fiets|Werk|19:00|2026-11-13": "2026-11-13T19:17+01:00",
     "krab|Krabben|06:00|2026-11-14": "2026-11-14T07:18+01:00",
     "vorst|vorst|19:00|2026-11-14": "2026-11-14T19:20+01:00",
     "fiets|Werk|19:00|2026-11-14": "2026-11-14T19:20+01:00",
     "krab|Krabben|06:00|2026-11-15": "2026-11-15T07:20+01:00",
     "vorst|vorst|19:00|2026-11-15": "2026-11-15T19:05+01:00",
     "fiets|Werk|19:00|2026-11-15": "2026-11-15T19:05+01:00",
-    "krab|Krabben|06:00|2026-11-16": "2026-11-16T06:11+01:00"
+    "krab|Krabben|06:00|2026-11-16": "2026-11-16T06:11+01:00",
+    "vorst|vorst|19:00|2026-11-16": "2026-11-16T19:35+01:00",
+    "fiets|Werk|19:00|2026-11-16": "2026-11-16T19:35+01:00"
   },
   "verstuurd": [
     {
@@ -25,7 +25,17 @@
       "tijd": "2026-11-15T19:05+01:00",
       "titel": "Werk: beter de auto morgen",
       "tekst": "Ederveen, Gelderland\n🚗 Heen 07:20: buien tot 0,8 mm/uur, ca. 35 min regen tijdens je rit · 8 °C\n🚲☂️ Terug 17:00: kans op een bui (43%) · 7 °C"
+    },
+    {
+      "tijd": "2026-11-16T19:36+01:00",
+      "titel": "Vorst verwacht",
+      "tekst": "Ederveen, Gelderland: het wordt 0.9 °C (di 01:00). Dat is op of onder je grens van 1 °C."
+    },
+    {
+      "tijd": "2026-11-16T19:36+01:00",
+      "titel": "Werk: beter de auto morgen",
+      "tekst": "Ederveen, Gelderland\n🚗 Heen 07:20: buien tot 2,8 mm/uur, ca. 35 min regen tijdens je rit · 3 °C\n🚲☂️ Terug 17:00: kans op een bui (45%) · 12 °C"
     }
   ],
-  "laatste_controle": "2026-11-16T06:11+01:00"
+  "laatste_controle": "2026-11-16T19:35+01:00"
 }
