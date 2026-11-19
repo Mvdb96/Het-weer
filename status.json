@@ -8,7 +8,9 @@
     "krab|Krabben|06:00|2026-11-18": "2026-11-18T06:44+01:00",
     "vorst|vorst|19:00|2026-11-18": "2026-11-18T19:16+01:00",
     "fiets|Werk|19:00|2026-11-18": "2026-11-18T19:16+01:00",
-    "krab|Krabben|06:00|2026-11-19": "2026-11-19T06:43+01:00"
+    "krab|Krabben|06:00|2026-11-19": "2026-11-19T06:43+01:00",
+    "vorst|vorst|19:00|2026-11-19": "2026-11-19T19:20+01:00",
+    "fiets|Werk|19:00|2026-11-19": "2026-11-19T19:20+01:00"
   },
   "verstuurd": [
     {
@@ -45,7 +47,12 @@
       "tijd": "2026-11-18T19:16+01:00",
       "titel": "Werk: beter de auto morgen",
       "tekst": "Ederveen, Gelderland\n🚗 Heen 07:20: buien tot 0,8 mm/uur, ca. 35 min regen tijdens je rit · 9 °C\n🚗 Terug 17:00: 70% kans op regen · 9 °C"
+    },
+    {
+      "tijd": "2026-11-19T19:22+01:00",
+      "titel": "Werk: beter de auto morgen",
+      "tekst": "Ederveen, Gelderland\n🚗 Heen 07:20: ca. 35 min regen tijdens je rit · 4 °C\n🚲 Terug 17:00: droog, weinig wind · 4 °C"
     }
   ],
-  "laatste_controle": "2026-11-19T06:43+01:00"
+  "laatste_controle": "2026-11-19T19:20+01:00"
 }
