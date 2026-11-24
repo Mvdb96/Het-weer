@@ -8,7 +8,9 @@
     "krab|Krabben|06:00|2026-11-23": "2026-11-23T06:41+01:00",
     "vorst|vorst|19:00|2026-11-23": "2026-11-23T19:37+01:00",
     "fiets|Werk|19:00|2026-11-23": "2026-11-23T19:37+01:00",
-    "krab|Krabben|06:00|2026-11-24": "2026-11-24T06:43+01:00"
+    "krab|Krabben|06:00|2026-11-24": "2026-11-24T06:43+01:00",
+    "vorst|vorst|19:00|2026-11-24": "2026-11-24T19:36+01:00",
+    "fiets|Werk|19:00|2026-11-24": "2026-11-24T19:36+01:00"
   },
   "verstuurd": [
     {
@@ -90,7 +92,17 @@
       "tijd": "2026-11-24T06:43+01:00",
       "titel": "Krabben: ruiten krabben vandaag",
       "tekst": "Ederveen, Gelderland\n🧊 Vertrek 07:30: vriest vannacht (-4 °C), vochtige lucht"
+    },
+    {
+      "tijd": "2026-11-24T19:36+01:00",
+      "titel": "Vorst verwacht",
+      "tekst": "Ederveen, Gelderland: het wordt -2.1 °C (wo 08:00). Dat is op of onder je grens van 1 °C."
+    },
+    {
+      "tijd": "2026-11-24T19:36+01:00",
+      "titel": "Werk: fietsweer morgen",
+      "tekst": "Ederveen, Gelderland\n🚲 Heen 07:20: droog, weinig wind · -2 °C\n🚲 Terug 17:00: droog, weinig wind · 0 °C"
     }
   ],
-  "laatste_controle": "2026-11-24T06:43+01:00"
+  "laatste_controle": "2026-11-24T19:36+01:00"
 }
