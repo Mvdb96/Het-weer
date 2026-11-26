@@ -1,7 +1,5 @@
 {
   "afgehandeld": {
-    "vorst|vorst|19:00|2026-11-22": "2026-11-22T19:23+01:00",
-    "fiets|Werk|19:00|2026-11-22": "2026-11-22T19:23+01:00",
     "krab|Krabben|06:00|2026-11-23": "2026-11-23T06:41+01:00",
     "vorst|vorst|19:00|2026-11-23": "2026-11-23T19:37+01:00",
     "fiets|Werk|19:00|2026-11-23": "2026-11-23T19:37+01:00",
@@ -10,14 +8,10 @@
     "fiets|Werk|19:00|2026-11-24": "2026-11-24T19:36+01:00",
     "krab|Krabben|06:00|2026-11-25": "2026-11-25T06:01+01:00",
     "vorst|vorst|19:00|2026-11-25": "2026-11-25T19:18+01:00",
-    "fiets|Werk|19:00|2026-11-25": "2026-11-25T19:18+01:00"
+    "fiets|Werk|19:00|2026-11-25": "2026-11-25T19:18+01:00",
+    "krab|Krabben|06:00|2026-11-26": "2026-11-26T06:00+01:00"
   },
   "verstuurd": [
-    {
-      "tijd": "2026-11-14T19:20+01:00",
-      "titel": "Vorst verwacht",
-      "tekst": "Ederveen, Gelderland: het wordt -0.3 °C (zo 04:00). Dat is op of onder je grens van 1 °C."
-    },
     {
       "tijd": "2026-11-15T19:05+01:00",
       "titel": "Werk: beter de auto morgen",
@@ -112,7 +106,12 @@
       "tijd": "2026-11-25T19:18+01:00",
       "titel": "Werk: fietsweer morgen",
       "tekst": "Ederveen, Gelderland\n🚲 Heen 07:20: droog, weinig wind · -1 °C\n🚲 Terug 17:00: droog, weinig wind · -1 °C"
+    },
+    {
+      "tijd": "2026-11-26T06:00+01:00",
+      "titel": "Krabben: ruiten krabben vandaag",
+      "tekst": "Ederveen, Gelderland\n🧊 Vertrek 07:30: vriest vannacht (-1 °C), vochtige lucht"
     }
   ],
-  "laatste_controle": "2026-11-25T19:18+01:00"
+  "laatste_controle": "2026-11-26T06:00+01:00"
 }
